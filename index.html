@@ -541,7 +541,7 @@ dialog::backdrop{background:#030a07cc}
   const game = (() => {
     const g = $("#game"), cv = $("#gcv"), cx = cv.getContext("2d"), mon = $("#g-mon"), buy = $("#g-buy");
     const BASE = 1.6, ROAD = 1.5, MTN = .6, COST = 100, CAP = 14, COLL = 1.5, ATK = 3.2, R = 4.2, HP = 100;
-    let diff = "easy", tm = 0, lost = 0, autoT = 0;
+    let diff = "easy", tm = 0, lost = 0, autoT = 0, fdt = .1, pt;
     const COL = [null, "210,166,74", "210,65,47"];
     const SPREAD = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1],[2,0],[-2,0],[0,2]];
     let W, H, hh, dpr, cols, rows, cs, ox, oy, own, road, cm, cities, roads, divs, money, sel, run = false, paused = false, raf = 0, last = 0, acc = 0, aiT = 0, nid = 1;
@@ -711,26 +711,38 @@ dialog::backdrop{background:#030a07cc}
       }
       lost += divs.filter(d => d.hp <= 0 && d.s === 1).length; divs = divs.filter(d => d.hp > 0); sel = sel.filter(id => divs.some(d => d.id === id));
     }
-    // Оточення: ізольований шматок ≤25 клітинок (5×5), повністю обведений ворогом (море теж межа),
-    // без жодної своєї дивізії всередині — здається й переходить до ворога.
+    // Оточення. Відрізаний від основної території шматок без своїх дивізій, обведений ворогом:
+    //  · до 25 клітинок (5×5) — здається одразу;
+    //  · більший («котел») — здається за POCK секунд; поки там немає військ, таймер іде, поява дивізії його скидає.
+    // Найбільший шматок території сторони (її «основа») ніколи не вважається котлом.
+    const POCK = 90;
     function pockets() {
-      const N = cols * rows, seen = new Uint8Array(N), has = [null, new Set(), new Set()], flips = [];
+      const N = cols * rows, seen = new Uint8Array(N), live = new Uint8Array(N), has = [null, new Set(), new Set()], comps = [], flips = [], big = [0, 0, 0];
       divs.forEach(d => has[d.s].add(cell(d)));
       for (let s0 = 0; s0 < N; s0++) {
         const o = own[s0]; if (!o || seen[s0]) continue;
-        const comp = [s0], st = [s0]; seen[s0] = 1; let foe = false, def = false;
+        const cells = [s0], st = [s0]; seen[s0] = 1; let foe = false, def = false;
         while (st.length) {
           const i = st.pop(), x = i % cols, y = (i / cols) | 0;
           if (has[o].has(i)) def = true;
           for (const [a, b] of N4) {
             const nx = x + a, ny = y + b; if (!inb(nx, ny)) continue;
             const j = idx(nx, ny), q = own[j];
-            if (q === o) { if (!seen[j]) { seen[j] = 1; comp.push(j); st.push(j); } } else if (q) foe = true;
+            if (q === o) { if (!seen[j]) { seen[j] = 1; cells.push(j); st.push(j); } } else if (q) foe = true;
           }
         }
-        if (comp.length <= 25 && foe && !def) flips.push([comp, 3 - o]);
+        comps.push({ o, cells, foe, def }); big[o] = Math.max(big[o], cells.length);
       }
-      flips.forEach(([comp, to]) => comp.forEach(i => own[i] = to));
+      for (const c of comps) {
+        if (!c.foe || c.def) continue;
+        const n = c.cells.length;
+        if (n <= 25) { flips.push([c.cells, 3 - c.o]); continue; }
+        if (n === big[c.o]) continue;
+        let age = 1e9; for (const i of c.cells) { pt[i] += fdt; live[i] = 1; if (pt[i] < age) age = pt[i]; }
+        if (age >= POCK) flips.push([c.cells, 3 - c.o]);
+      }
+      for (let i = 0; i < N; i++) if (!live[i]) pt[i] = 0;
+      flips.forEach(([cells, to]) => cells.forEach(i => { own[i] = to; pt[i] = 0; }));
     }
     // ФРОНТ: територія не належить нікому «просто так» — її тримає вплив дивізій.
     // Вплив дивізії = (hp/100) · (1 − d/R)², де d — відстань до клітинки.
@@ -813,7 +825,7 @@ dialog::backdrop{background:#030a07cc}
     function tick(dt) {
       const inc = income(); money[1] += inc[1] * dt; money[2] += inc[2] * dt * DIFF[diff].inc; tm += dt; autoT -= dt; if (autoT <= 0) { autoT = .5; auto(); }
       fight(dt); move(dt);
-      acc += dt; if (acc >= .1) { acc = 0; front(); }
+      acc += dt; if (acc >= .1) { fdt = acc; acc = 0; front(); }
       aiT -= dt; if (aiT <= 0) { aiT = DIFF[diff].think; ai(); }
       const n = [0, 0, 0]; cities.forEach(c => n[cOwn(c)]++);
       if (!n[2]) end(true); else if (!n[1]) end(false);
@@ -837,6 +849,7 @@ dialog::backdrop{background:#030a07cc}
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
         const i = idx(x, y), o = own[i]; if (!o) continue;
         cx.fillStyle = o === 1 ? "rgba(40,60,255,.07)" : "rgba(255,30,30,.07)"; cx.fillRect(x * cs, y * cs, cs, cs);
+        if (pt[i] > 0) { cx.fillStyle = "rgba(255,255,255," + (.06 + .3 * Math.min(1, pt[i] / POCK)).toFixed(2) + ")"; cx.fillRect(x * cs, y * cs, cs, cs); }
         if (x < cols - 1 && own[i + 1] && own[i + 1] !== o) { hard.moveTo((x + 1) * cs, y * cs); hard.lineTo((x + 1) * cs, (y + 1) * cs); }
         if (y < rows - 1 && own[i + cols] && own[i + cols] !== o) { hard.moveTo(x * cs, (y + 1) * cs); hard.lineTo((x + 1) * cs, (y + 1) * cs); }
         // солдати стають на фронті там, де за ними є дивізії: перший ряд — край, другий — за ним
@@ -935,6 +948,7 @@ dialog::backdrop{background:#030a07cc}
       W = innerWidth; H = innerHeight; hh = $(".hud").offsetHeight;
       const hz = W >= H - hh; cols = hz ? 128 : 80; rows = hz ? 80 : 128;
       cs = 16; fit(); gen();
+      pt = new Float32Array(cols * rows);
       divs = []; sel = []; money = [0, 200, DIFF[diff].cash]; nid = 1; acc = 0; aiT = DIFF[diff].first; paused = false; run = true;
       [1, 2].forEach(s => { for (let k = 0; k < 4; k++) spawn(s, cities[s - 1]); });
       const c = cities[0]; ox = W / 2 - (c.x + .5) * cs; oy = (H + hh) / 2 - (c.y + .5) * cs; clampCam();

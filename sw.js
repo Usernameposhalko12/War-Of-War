@@ -1,4 +1,4 @@
-const CACHE = "wow-v013";
+const CACHE = "wow-v014";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", e => {
