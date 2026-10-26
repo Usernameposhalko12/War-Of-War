@@ -1,0 +1,16 @@
+{
+  "name": "WAR OF WAR",
+  "short_name": "War of War",
+  "description": "Війна точок з казино",
+  "lang": "uk",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f2b23",
+  "theme_color": "#0f2b23",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
