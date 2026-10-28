@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>WAR OF WAR</title>
+<meta name="theme-color" content="#0f2b23">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="War of War">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;700&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --felt:#0f2b23;
+  --felt-2:#16392f;
+  --ink:#08140f;
+  --brass:#d2a64a;
+  --brass-dim:#8f7231;
+  --red:#d2412f;
+  --paper:#ece4cf;
+  --muted:#8fa89d;
+  --display:"Russo One","Arial Black",Impact,sans-serif;
+  --body:"Exo 2","Trebuchet MS",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--paper);font-family:var(--body);font-weight:500;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+canvas#field{position:fixed;inset:0;width:100%;height:100%;display:block;background:radial-gradient(ellipse at 50% 40%,var(--felt-2),var(--felt) 70%)}
+
+/* ---------- layout ---------- */
+.stage{
+  position:relative;z-index:1;height:100%;
+  padding:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-right,0px) + 20px) calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 20px);
+  display:grid;gap:12px 28px;
+  grid-template-columns:minmax(220px,300px) minmax(0,640px);
+  grid-template-rows:auto 1fr auto;
+  grid-template-areas:
+    "ver   title"
+    "side  menu"
+    "foot  menu";
+  justify-content:center;
+  max-width:1100px;margin:0 auto;
+}
+.ver{grid-area:ver;font-family:var(--display);font-size:28px;color:var(--brass);letter-spacing:.02em;align-self:start}
+.ver small{display:block;font:500 12px var(--body);color:var(--muted);margin-top:2px}
+
+.balance{
+  position:fixed;z-index:2;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 16px);
+  display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;
+  background:var(--ink);border:2px solid var(--brass-dim);font-weight:700;font-variant-numeric:tabular-nums;
+}
+.balance i{width:26px;height:26px;border-radius:50%;background:var(--red);display:grid;place-items:center;font:normal 14px var(--display);color:var(--paper);box-shadow:inset 0 0 0 3px var(--red),inset 0 0 0 5px var(--paper)}
+
+/* ---------- title ---------- */
+.title{grid-area:title;position:relative;text-align:center;padding:18px 0 16px;border-top:3px solid var(--brass);border-bottom:3px solid var(--brass)}
+.title::before,.title::after{content:"";position:absolute;left:0;right:0;height:1px;background:var(--brass-dim)}
+.title::before{top:5px}.title::after{bottom:5px}
+.title h1{margin:0;font:400 clamp(34px,7vw,64px)/1 var(--display);letter-spacing:.05em;text-shadow:0 3px 0 var(--ink)}
+.title h1 span{position:relative;display:inline-block;padding:0 .55em}
+.title h1 span::before,.title h1 span::after{content:"";position:absolute;bottom:-.1em;width:.55em;height:.28em;border-top:3px solid var(--red);border-bottom:3px solid var(--red);transform:skewX(-45deg)}
+.title h1 span::before{left:-.15em}
+.title h1 span::after{right:-.15em;transform:skewX(45deg)}
+.title p{margin:8px 0 0;font-size:13px;color:var(--muted);letter-spacing:.04em}
+
+/* ---------- profile ---------- */
+.side{grid-area:side;display:flex;flex-direction:column;align-items:center;gap:18px;padding-top:6px}
+.nick{
+  width:100%;padding:12px 14px;text-align:center;font-weight:700;font-size:18px;
+  background:var(--ink);border:2px solid var(--brass);border-radius:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.nick:hover,.nick:focus-visible{background:#0c1d17}
+.avatar{
+  width:clamp(120px,24vw,170px);aspect-ratio:1;border-radius:50%;
+  display:grid;place-items:center;font-size:clamp(56px,11vw,80px);
+  background:var(--felt-2);border:3px solid var(--brass);
+  box-shadow:0 0 0 6px var(--ink),0 0 0 8px var(--brass-dim);
+  position:relative;
+}
+.avatar::after{content:"змінити";position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:var(--ink);border:1px solid var(--brass-dim);padding:1px 10px;border-radius:999px;font-size:11px;color:var(--muted)}
+
+/* ---------- menu ---------- */
+.menu{grid-area:menu;display:grid;gap:14px;align-content:start;grid-template-columns:1fr 1fr;padding-top:10px}
+.btn{
+  position:relative;padding:18px 14px;min-height:64px;
+  background:var(--ink);border:2px solid var(--brass);border-radius:4px;
+  font:400 clamp(16px,2.6vw,22px)/1.15 var(--display);letter-spacing:.02em;text-align:center;
+  box-shadow:0 5px 0 var(--brass-dim);
+  transition:transform .08s,box-shadow .08s,background .15s;touch-action:manipulation;
+}
+.btn:hover{background:#0d2019}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--brass-dim)}
+.btn:focus-visible,.nick:focus-visible,.avatar:focus-visible,.link:focus-visible,.tog:focus-visible,.pick:focus-visible{outline:3px solid var(--paper);outline-offset:3px}
+.btn.solo{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+.btn.solo:hover{background:#dcb458}
+.btn.multi{border-color:var(--red);box-shadow:0 5px 0 #7d2419}
+.btn.multi:active{box-shadow:0 1px 0 #7d2419}
+.btn.wide{grid-column:1/-1;font-size:clamp(16px,2.4vw,20px)}
+.btn small{display:block;margin-top:5px;font:500 12px var(--body);letter-spacing:0;opacity:.75}
+
+.foot{grid-area:foot;align-self:end}
+.link{
+  background:none;border:0;padding:10px 4px;font-size:15px;color:var(--muted);
+  border-bottom:1px dashed var(--brass-dim);
+}
+.link:hover{color:var(--paper)}
+
+/* ---------- dialogs ---------- */
+dialog{
+  border:2px solid var(--brass);border-radius:4px;background:var(--felt);color:var(--paper);
+  padding:0;width:min(440px,calc(100vw - 32px));font-family:var(--body);box-shadow:0 0 0 6px var(--ink),0 20px 60px #000a;
+}
+dialog::backdrop{background:#030a07cc}
+.d-head{padding:14px 18px;border-bottom:2px solid var(--brass);font:400 20px var(--display);background:var(--ink)}
+.d-body{padding:18px;display:grid;gap:14px;font-size:15px;line-height:1.45}
+.d-body p{margin:0}
+.d-foot{display:flex;gap:10px;justify-content:flex-end;padding:0 18px 18px}
+.d-foot .btn{padding:10px 18px;min-height:0;font-size:16px;box-shadow:0 3px 0 var(--brass-dim)}
+.field{width:100%;padding:12px;background:var(--ink);border:2px solid var(--brass-dim);border-radius:4px;color:var(--paper);font:700 18px var(--body);user-select:text;-webkit-user-select:text}
+.field:focus{outline:none;border-color:var(--brass)}
+.hint{color:var(--muted);font-size:13px}
+.err{color:#ff8a78;font-size:13px;min-height:1em}
+.picks{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.pick{aspect-ratio:1;font-size:30px;background:var(--ink);border:2px solid var(--brass-dim);border-radius:50%}
+.pick[aria-pressed="true"]{border-color:var(--brass);background:var(--felt-2);box-shadow:0 0 0 3px var(--brass-dim)}
+.empty{padding:22px 10px;text-align:center;border:2px dashed var(--brass-dim);border-radius:4px;color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #ffffff14}
+.tog{width:54px;height:30px;border-radius:999px;background:var(--ink);border:2px solid var(--brass-dim);position:relative;padding:0;flex:none}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.tog[aria-checked="true"]{border-color:var(--brass)}
+.tog[aria-checked="true"]::after{transform:translateX(24px);background:var(--brass)}
+
+/* ---------- portrait / phones ---------- */
+@media (max-width:759px){
+  html,body{overflow:auto}
+  .stage{
+    height:auto;min-height:100%;grid-template-columns:minmax(0,1fr);grid-template-rows:none;
+    grid-template-areas:"ver" "title" "side" "menu" "foot";gap:16px;
+  }
+  .ver{display:flex;align-items:baseline;gap:10px}
+  .ver small{margin:0}
+  .side{flex-direction:row;gap:16px;padding:0}
+  .avatar{width:96px;font-size:48px;flex:none}
+  .avatar::after{display:none}
+  .nick{text-align:left}
+  .menu{grid-template-columns:1fr}
+  .foot{padding-top:8px}
+}
+@media (max-height:520px) and (min-width:760px){
+  .stage{gap:8px 24px}
+  .title{padding:10px 0}
+  .title p{display:none}
+  .btn{min-height:52px;padding:12px}
+  .avatar{width:110px;font-size:52px}
+}
+
+/* ---------- game ---------- */
+#game{position:fixed;inset:0;z-index:10;display:none;background:radial-gradient(ellipse at 50% 40%,var(--felt-2),var(--felt) 70%)}
+#game.on{display:block}
+#gcv{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.hud{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 8px) calc(env(safe-area-inset-right,0px) + 10px) 8px calc(env(safe-area-inset-left,0px) + 10px);background:#08140fe6;border-bottom:2px solid var(--brass-dim)}
+.hud .btn{padding:8px 14px;min-height:46px;min-width:46px;font-size:14px;white-space:nowrap;box-shadow:0 3px 0 var(--brass-dim);touch-action:manipulation;transition:none}
+.hud .btn:active{transform:none;box-shadow:0 3px 0 var(--brass-dim);filter:brightness(1.5)}
+.hud .btn.off{opacity:.4}
+.hud .mon{flex:1;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14px;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- shop ---------- */
+#shop{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;background:radial-gradient(ellipse at 50% 0%,var(--felt-2),var(--felt) 70%)}
+#shop.on{display:flex}
+.shop-top{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:#08140fe6;border-bottom:2px solid var(--brass-dim)}
+.shop-top .btn{padding:8px 14px;min-height:0;box-shadow:0 3px 0 var(--brass-dim)}
+.shop-top h2{flex:1;margin:0;font:normal 22px var(--display);letter-spacing:.04em;color:var(--brass)}
+.shop-bal{display:flex;align-items:center;gap:8px;padding:4px 12px 4px 5px;border:2px solid var(--brass-dim);border-radius:999px;font-weight:700;font-variant-numeric:tabular-nums}
+.shop-bal i{width:26px;height:26px;border-radius:50%;background:var(--red);display:grid;place-items:center;font:normal 14px var(--display);color:var(--paper);box-shadow:inset 0 0 0 3px var(--red),inset 0 0 0 5px var(--paper)}
+.shop-tabs{display:flex;gap:8px;padding:12px 14px 6px;overflow-x:auto;scrollbar-width:none}
+.shop-tabs button{flex:none;padding:8px 14px;border-radius:999px;border:2px solid var(--brass-dim);background:transparent;color:var(--paper);font:700 14px var(--body)}
+.shop-tabs button.on{background:var(--brass);border-color:var(--brass);color:var(--ink)}
+.shop-body{flex:1;overflow-y:auto;padding:8px 14px calc(env(safe-area-inset-bottom,0px) + 20px)}
+.shop-banner{display:flex;flex-direction:column;gap:4px;margin:6px 0 14px;padding:16px;border:2px solid var(--brass);border-radius:16px;background:linear-gradient(135deg,#d2a64a26,#d2412f1f)}
+.shop-banner b{font:normal 18px var(--display);color:var(--brass)}
+.shop-banner span{color:var(--muted);font-size:14px}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.slot{aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--brass-dim);border-radius:16px;background:#ffffff08;opacity:.75}
+.slot span{font-size:30px;filter:grayscale(1)}
+.slot small{color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+
+/* ---------- units / cases ---------- */
+.pic{display:grid;place-items:center;font-size:34px;line-height:1;flex:none}
+.pic img{width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
+.deck{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;justify-content:center;gap:8px;padding:8px calc(env(safe-area-inset-right,0px) + 10px) calc(env(safe-area-inset-bottom,0px) + 8px) calc(env(safe-area-inset-left,0px) + 10px);pointer-events:none}
+.card{pointer-events:auto;position:relative;width:78px;min-height:96px;padding:6px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px;background:linear-gradient(180deg,#0e251c,#08140f);border:2px solid var(--rc,var(--brass));border-radius:10px;box-shadow:0 4px 0 #000a,inset 0 -22px 20px -16px var(--rc,var(--brass-dim));touch-action:manipulation}
+.card .pic{width:46px;height:46px;font-size:30px}
+.card b{font:700 11px/1.1 var(--body);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card small{font:700 12px var(--body);color:var(--brass);font-variant-numeric:tabular-nums}
+.card small::before{content:"W ";opacity:.6}
+.card:active{filter:brightness(1.5)}
+.card.off{opacity:.4}
+.dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ucard{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;background:var(--ink);border:2px solid color-mix(in srgb,var(--rc) 45%,#000);border-radius:10px;text-align:center}
+.ucard .pic{width:52px;height:52px}
+.ucard b{font:700 13px var(--body)}
+.ucard small{font:500 11px var(--body);color:var(--muted)}
+.ucard .st{font-size:10px;letter-spacing:-.02em}
+.ucard em{position:absolute;top:3px;right:6px;font:700 11px var(--body);font-style:normal;color:var(--muted)}
+.ucard[aria-pressed="true"]{border-color:var(--rc);box-shadow:0 0 0 2px var(--rc),0 0 18px -2px var(--rc);background:#0e251c}
+.urow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid color-mix(in srgb,var(--rc) 50%,#000);border-left:4px solid var(--rc);border-radius:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--rc) 14%,transparent),transparent)}
+.urow .pic{width:44px;height:44px;font-size:28px}
+.urow .ui{flex:1;min-width:0;display:grid;gap:2px}
+.urow .ui small{color:var(--muted);font-size:12px}
+.urow.tap{cursor:pointer}
+.urow[aria-pressed="true"]{box-shadow:0 0 0 2px var(--rc),0 0 14px -2px var(--rc)}
+.urow .cnt{font:700 16px var(--body);color:var(--rc)}
+.case-card{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:6px 18px;padding:18px;border:2px solid var(--brass);border-radius:16px;background:radial-gradient(ellipse at 15% 0%,#d2a64a2e,transparent 60%),linear-gradient(135deg,#0a1a14,#0f2b23)}
+.case-art{display:grid;place-items:center;width:150px;height:150px;filter:drop-shadow(0 10px 18px #000a)}
+.case-art .pic{width:150px;height:150px;font-size:84px}
+.case-info{display:flex;flex-direction:column;justify-content:center;gap:8px;align-items:flex-start}
+.case-info b{font:normal 28px var(--display);letter-spacing:.05em;color:var(--brass)}
+.case-info span{color:var(--muted);font-size:14px}
+.case-list{grid-column:1/-1;display:grid;gap:4px;margin-top:8px}
+.crow{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;background:#ffffff08;border-left:4px solid var(--rc);font-size:14px}
+.crow i{width:8px;height:8px;border-radius:50%;background:var(--rc);box-shadow:0 0 8px var(--rc)}
+.crow span{flex:1}
+.crow em{font:700 14px var(--body);font-style:normal;color:var(--rc)}
+@media (max-width:560px){.case-card{grid-template-columns:1fr;justify-items:center;text-align:center}.case-info{align-items:center}}
+#roll{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 12px) 0 calc(env(safe-area-inset-bottom,0px) + 12px);background:radial-gradient(ellipse at 50% 40%,#16392f,#050d09 78%)}
+#roll.on{display:flex}
+#roll h2{margin:0;font:normal 30px var(--display);letter-spacing:.12em;color:var(--brass);text-shadow:0 0 18px #d2a64a66}
+.reel{position:relative;width:100%;max-width:1100px;overflow:hidden;background:#050d09;border-block:2px solid var(--brass-dim);box-shadow:0 0 40px #000c inset;-webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)}
+.reel::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#ffd34d;box-shadow:0 0 14px 2px #ffd34d;z-index:2}
+.strip{display:flex;height:100%;will-change:transform}
+.rc{position:relative;flex:none;width:var(--cw);height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-right:1px solid #ffffff12;overflow:hidden}
+.rc::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,var(--rc),transparent 70%);opacity:.38}
+.rc::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--rc);box-shadow:0 0 12px var(--rc)}
+.rc .pic{width:68%;aspect-ratio:1;font-size:48px;position:relative;z-index:1}
+.rc small{position:relative;z-index:1;font:700 11px var(--body);color:#fff;text-shadow:0 1px 2px #000;max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res{min-height:250px;display:grid;place-items:center;width:100%}
+.rev{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 28px;width:min(92vw,360px);text-align:center;border:2px solid var(--rc);border-radius:16px;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--rc) 35%,transparent),transparent 70%),#08140f;box-shadow:0 0 50px -6px var(--rc);animation:pop .55s cubic-bezier(.2,1.4,.4,1)}
+.rev .pic{width:120px;height:120px;font-size:72px;filter:drop-shadow(0 0 16px var(--rc))}
+.rev small{font:700 12px var(--body);letter-spacing:.2em;text-transform:uppercase;color:var(--rc)}
+.rev b{font:normal 22px var(--display)}
+.rev p{margin:0;font-size:13px;color:var(--muted)}
+.rev .ustat{font:700 13px var(--body);color:var(--paper)}
+.rev .flash{position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(circle,var(--rc),transparent 62%);opacity:0;pointer-events:none;animation:fl 1s ease-out}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes fl{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(1.5)}}
+.roll-act{display:flex;gap:10px;min-height:52px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<canvas id="field" aria-hidden="true"></canvas>
+
+<div class="balance" title="Баланс"><i>W</i><span id="balance">1 000</span></div>
+
+<main class="stage">
+  <div class="ver">0.12<small>рання версія</small></div>
+
+  <header class="title">
+    <h1><span>WAR OF WAR</span></h1>
+    <p>Захоплюй точки. Став на перемогу.</p>
+  </header>
+
+  <section class="side" aria-label="Профіль">
+    <button class="nick" id="nick" type="button" aria-label="Змінити нікнейм">[Нікнейм]</button>
+    <button class="avatar" id="avatar" type="button" aria-label="Змінити аватарку">?</button>
+  </section>
+
+  <nav class="menu" aria-label="Головне меню">
+    <button class="btn solo" data-act="solo" type="button">Самотня війна</button>
+    <button class="btn multi" data-act="multi" type="button">Війна в Мультплеєр</button>
+    <button class="btn wide" data-act="shop" type="button">Магазин</button>
+    <button class="btn wide" data-act="inventory" type="button">Інвентар</button>
+    <button class="btn wide" data-act="stats" type="button">Статистика</button>
+    <button class="btn wide" data-act="settings" type="button">Налаштування</button>
+  </nav>
+
+  <footer class="foot">
+    <button class="link" id="switch" type="button">Змінити акаунт</button>
+  </footer>
+</main>
+
+<section id="shop" aria-label="Магазин">
+  <div class="shop-top">
+    <button class="btn" id="shop-back" type="button" aria-label="Назад">←</button>
+    <h2>Магазин</h2>
+    <div class="shop-bal"><i>W</i><span id="shop-bal"></span></div>
+  </div>
+  <div class="shop-tabs" id="shop-tabs"></div>
+  <div class="shop-body">
+    <div class="shop-banner"><b>Скоро відкриття</b><span>Кейси, дивізії та оформлення з’являться тут. Баланс уже готовий.</span></div>
+    <div class="shop-grid" id="shop-grid"></div>
+  </div>
+</section>
+
+<section id="game" aria-label="Бій">
+  <canvas id="gcv"></canvas>
+  <div class="hud">
+    <button class="btn" id="g-exit" type="button" aria-label="Вийти">✕</button>
+    <div class="mon" id="g-mon"></div>
+    <button class="btn" id="g-all" type="button">Усі</button>
+    <button class="btn" id="g-pause" type="button" aria-label="Пауза">⏸</button>
+  </div>
+  <div class="deck" id="deck"></div>
+</section>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <div class="d-head" id="dlg-title"></div>
+  <div class="d-body" id="dlg-body"></div>
+  <div class="d-foot" id="dlg-foot"></div>
+</dialog>
+
+<script type="module">
+(() => {
+  "use strict";
+
+  /* ================= storage ================= */
+  const KEY = "wow.v010";
+  const defaults = {
+    profile: null,                       // { nick, avatar }
+    balance: 1000,
+    diff: "easy", awards: {}, pending: [], outbox: [], imported: "", inv: {}, opened: 0, loadout: [], skin: "",
+    stats: { g: 0, w: 0, t: 0, k: 0, l: 0, m: { kill: [0, 0], hold: [0, 0] }, d: { easy: [0, 0], normal: [0, 0], hard: [0, 0] }, best: {} },
+    settings: { sound: true, vibrate: true, bgAnim: true }
+  };
+  let state = load();
+
+  function load() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEY));
+      return {
+        ...defaults, ...raw,
+        settings: { ...defaults.settings, ...(raw && raw.settings) }
+      };
+    } catch { return structuredClone(defaults); }
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} }
+
+  /* ================= прогрес гравця: одна логіка і для пристрою, і для хмари ================= */
+  // Стата, медалі й баланс живуть у Firestore (users/{uid}). Кожен результат бою — запис в outbox,
+  // який у транзакції додається до хмарного стану. Тому всі пристрої одного Google-акаунта бачать однакове.
+  const P2 = a => [(a && +a[0]) || 0, (a && +a[1]) || 0];
+  const sum2 = (a, b) => [a[0] + b[0], a[1] + b[1]];
+  function normStats(s) {
+    s = s || {}; const m = s.m || {}, d = s.d || {};
+    return { g: +s.g || 0, w: +s.w || 0, t: +s.t || 0, k: +s.k || 0, l: +s.l || 0,
+      m: { kill: P2(m.kill), hold: P2(m.hold) }, d: { easy: P2(d.easy), normal: P2(d.normal), hard: P2(d.hard) },
+      mp: P2(s.mp), best: { ...(s.best || {}) } };
+  }
+  const fromDoc = d => ({ stats: normStats(d && d.stats), awards: { ...((d && d.awards) || {}) }, balance: d && typeof d.balance === "number" ? d.balance : 1000,
+    inv: { ...((d && d.inv) || {}) }, opened: (d && +d.opened) || 0, loadout: d && Array.isArray(d.loadout) ? d.loadout : [], skin: d && typeof d.skin === "string" ? d.skin : "" });
+  const cur = () => ({ stats: state.stats, awards: state.awards, balance: state.balance, inv: state.inv || {}, opened: state.opened || 0, loadout: state.loadout || [], skin: state.skin || "" });
+  function applyItem(b, r) {
+    const s = normStats(b.stats), none = { gain: 0, fresh: [] };
+    if (r.cs) {                                      // відкриття кейсу: мінус ціна, плюс предмет
+      if (b.balance < CASE.price || !IT(r.id)) return { ...b, ...none };
+      return { ...b, ...none, balance: b.balance - CASE.price, inv: { ...b.inv, [r.id]: (b.inv[r.id] || 0) + 1 }, opened: (b.opened || 0) + 1 };
+    }
+    if (r.sk !== undefined) return { ...b, ...none, skin: SK[r.sk] && b.inv[r.sk] > 0 ? r.sk : "" };   // скін бази
+    if (r.lo) return { ...b, ...none, loadout: [...new Set(r.lo)].filter(id => b.inv[id] > 0).slice(0, 3) };   // колода (до 3)
+    if (r.imp) {                                     // разовий імпорт старої локальної стати в акаунт
+      const o = normStats(r.stats), best = { ...s.best };
+      for (const k of ["kill", "hold"]) if (o.best[k] && (!best[k] || o.best[k] < best[k])) best[k] = o.best[k];
+      return { ...b, stats: { g: s.g + o.g, w: s.w + o.w, t: s.t + o.t, k: s.k + o.k, l: s.l + o.l,
+          m: { kill: sum2(s.m.kill, o.m.kill), hold: sum2(s.m.hold, o.m.hold) },
+          d: { easy: sum2(s.d.easy, o.d.easy), normal: sum2(s.d.normal, o.d.normal), hard: sum2(s.d.hard, o.d.hard) },
+          mp: sum2(s.mp, o.mp), best },
+        awards: { ...b.awards, ...r.awards }, balance: b.balance + (r.gain || 0), gain: 0, fresh: [] };
+    }
+    const w = r.win ? 1 : 0, out = { ...s, g: s.g + 1, w: s.w + w, t: s.t + r.tm, k: s.k + r.kills, l: s.l + r.lost };
+    let awards = b.awards, balance = b.balance, gain = 0, fresh = [];
+    if (r.mp) out.mp = [s.mp[0] + 1, s.mp[1] + w];
+    else {
+      out.m = { ...s.m, [r.mode]: [s.m[r.mode][0] + 1, s.m[r.mode][1] + w] };
+      out.d = { ...s.d, [r.diff]: [s.d[r.diff][0] + 1, s.d[r.diff][1] + w] };
+      if (w) {
+        if (!s.best[r.mode] || r.tm < s.best[r.mode]) out.best = { ...s.best, [r.mode]: r.tm };
+        const got = [r.diff]; if (r.mode === "hold") got.push("hold"); if (r.tm < 360) got.push("blitz"); if (!r.lost) got.push("iron");
+        fresh = got.filter(k => !awards[k]); gain = REW[r.diff] + fresh.length * 50;
+        awards = { ...awards, ...Object.fromEntries(got.map(k => [k, true])) }; balance += gain;
+      }
+    }
+    return { ...b, stats: out, awards, balance, gain, fresh };
+  }
+  // стан = хмарна база + ще не відправлені результати
+  function adopt(b) { state.stats = b.stats; state.awards = b.awards; state.balance = b.balance; state.inv = b.inv; state.opened = b.opened; state.loadout = b.loadout; state.skin = b.skin || ""; }
+  function rebase(b) { for (const it of state.outbox) b = applyItem(b, it); adopt(b); }
+  function commit(r) {
+    const out = applyItem(cur(), r); adopt(out);
+    if (cloud.enabled) state.outbox = [...state.outbox, r];
+    save(); render(); cloud.sync();
+    return out;
+  }
+  // стара локальна стата цього пристрою один раз «вливається» в акаунт (стата з двох пристроїв складається)
+  function queueImport(uid) {
+    if (!uid || state.imported === uid) return;
+    if (state.stats.g || pend() || Object.keys(state.awards).length)
+      state.outbox = [...state.outbox, { imp: true, stats: state.stats, awards: state.awards, gain: pend() }];
+    state.imported = uid; state.pending = [];
+  }
+
+  /* ================= helpers ================= */
+  const $ = (s, r = document) => r.querySelector(s);
+  const el = (tag, props = {}, ...kids) => {
+    const n = Object.assign(document.createElement(tag), props);
+    kids.flat().forEach(k => n.append(k));
+    return n;
+  };
+  const buzz = () => { if (state.settings.vibrate && navigator.vibrate) navigator.vibrate(12); };
+  const pend = () => state.pending.reduce((a, b) => a + b, 0);   // нагороди, які ще чекають на сервер
+  const REW = { easy: 50, normal: 120, hard: 250 };
+  const MEDALS = { easy: ["🥉", "Перемога: легка"], normal: ["🥈", "Перемога: нормальна"], hard: ["🥇", "Перемога: складна"], blitz: ["⚡", "Бліцкриг: перемога за 6 хв"], iron: ["🛡️", "Залізна стіна: без втрат"], hold: ["📍", "Утримання: перемога"] };
+  const RAR = { sp: ["Спеціальна", "#ffd34d"], se: ["Секретна", "#eb4b4b"], le: ["Легендарна", "#ff8a1f"], ep: ["Епічна", "#8847ff"], ex: ["Виняткова", "#3ec6ff"], co: ["Звичайна", "#b4b9c2"] };
+  // hp — міцність, spd — швидкість, atk — шкода, def — захист (отримує урону 1/def), cost — ціна в бою.
+  // Сила ≈ hp·atk·√spd·def; ціна росте разом із нею, а найрідші мають слабке місце (крихкий / повільний).
+  const UN = {
+    pp1: { n: "ПП-1", name: "Кігті Собаки", r: "sp", p: 2,  hp: 135, spd: 1.2,  atk: 1.45, def: .85, cost: 210, e: "🐕", d: "Швидкий і смертоносний, але крихкий." },
+    pp2: { n: "ПП-2", name: "Патріот",      r: "se", p: 6,  hp: 165, spd: .75,  atk: 1.1,  def: 1.1, cost: 180, e: "🛡️", d: "Повільна броньована твердиня для оборони." },
+    pp3: { n: "ПП-3", name: "Чекушка",      r: "le", p: 12, hp: 130, spd: .9,   atk: 1.2,  def: 1,   cost: 150, e: "🍶", d: "Важка ударна піхота: б’є сильно, йде неспішно." },
+    pp4: { n: "ПП-4", name: "Спущьонка",    r: "ep", p: 20, hp: 105, spd: 1.35, atk: .95,  def: 1,   cost: 120, e: "🪂", d: "Маневрений загін для швидких обходів." },
+    pp5: { n: "ПП-5", name: "Могутній Орел", r: "ex", p: 25, hp: 115, spd: 1,    atk: 1.1,  def: 1,   cost: 125, e: "🦅", d: "Надійний універсал." },
+    pp6: { n: "ПП-6", name: "Тотя",         r: "co", p: 35, hp: 90,  spd: 1.1,  atk: 1,    def: 1,   cost: 90,  e: "🧢", d: "Дешевий швидкий розвідник." }
+  };
+  const CASE = { id: "alpha", name: "ALPHACASE", price: 250, items: ["pp1", "pp2", "pp3", "pp4", "pp5", "pp6"], art: "img/alphacase.png", ic: "📦", desc: "6 нових юнітів. Обирай до 3 на початку бою." };
+  // Скіни: замінюють вигляд базових юнітів (не бійців). Стакаються в інвентарі, одягається один.
+  const SK = {
+    sk1:  { name: "ГУР",                                r: "sp", p: 1,  e: "🎖️" },
+    sk2:  { name: "«Азов»",                             r: "sp", p: 1,  e: "🎖️" },
+    sk3:  { name: "10-та ОГШБр «Едельвейс»",            r: "se", p: 3,  e: "🎖️" },
+    sk4:  { name: "ССО",                                r: "se", p: 3,  e: "🎖️" },
+    sk5:  { name: "3-й корпус",                         r: "le", p: 6,  e: "🎖️" },
+    sk6:  { name: "Батальйон «Вовки ДаВінчі»",          r: "le", p: 6,  e: "🎖️" },
+    sk7:  { name: "40-ва БрТА («Привиди Києва»)",       r: "ep", p: 10, e: "🎖️" },
+    sk8:  { name: "47-ма ОМБр «Маґура»",                r: "ep", p: 10, e: "🎖️" },
+    sk9:  { name: "93-тя ОМБр «Холодний Яр»",           r: "ex", p: 12, e: "🎖️" },
+    sk10: { name: "79-та ОДШБр",                        r: "ex", p: 13, e: "🎖️" },
+    sk11: { name: "63-тя ОМБр",                         r: "co", p: 17, e: "🎖️" },
+    sk12: { name: "1-ша ОБрСпП ім. Івана Богуна",       r: "co", p: 18, e: "🎖️" }
+  };
+  const MIL = { id: "milatk", name: "MilitaryAttack", price: 250, items: Object.keys(SK), art: "img/milcase.png", ic: "🎖️", desc: "12 скінів для базових юнітів. Стакаються в інвентарі." };
+  const IT = id => UN[id] || SK[id];
+  const iName = id => UN[id] ? uName(id) : SK[id].name;
+  const skinSrc = () => state.skin && SK[state.skin] && state.inv[state.skin] > 0 ? "img/" + state.skin + ".png" : null;
+  // кеш картинок для полотна бою
+  const IMGC = {};
+  const getImg = src => { if (!src) return null; let i = IMGC[src]; if (!i) { i = IMGC[src] = new Image(); i.onerror = () => { i.bad = true; }; i.src = src; } return i.complete && i.naturalWidth && !i.bad ? i : null; };
+  const setU = (d, u) => { const q = UN[u]; if (q) { d.u = u; d.mx = q.hp; d.sp = q.spd; d.atk = q.atk; d.def = q.def; } };
+  const uName = id => UN[id].n + " «" + UN[id].name + "»";
+  const statLine = q => "❤ " + q.hp + " · ⚡ ×" + q.spd + " · ⚔ ×" + q.atk + " · 🛡 ×" + q.def;
+  const pic = (src, emoji) => {
+    const w = el("span", { className: "pic" });
+    if (!src) { w.textContent = emoji; return w; }
+    const i = el("img", { src, alt: "", draggable: false }); i.onerror = () => { w.textContent = emoji; };
+    w.append(i); return w;
+  };
+  const AVATARS = ["🪖","💂","🧑‍✈️","🥷","🦅","🐺","🦂","🐍","💀","🎖️","🎲","🃏"];
+
+  /* ================= Firebase ================= */
+  // Вставте сюди конфіг з Firebase Console → Project settings → Your apps → Web (</>).
+  // Поки apiKey/appId містять "ВСТАВ", гра працює локально без хмари.
+  const firebaseConfig = {
+    apiKey: "AIzaSyAwR9hdQ6LWK0ZKqltnEyIFT3GU7SOmNM4",
+    authDomain: "warofwar-df4b6.firebaseapp.com",
+    projectId: "warofwar-df4b6",
+    storageBucket: "warofwar-df4b6.firebasestorage.app",
+    messagingSenderId: "867490092176",
+    appId: "1:867490092176:web:48906fbef6666003663415"
+  };
+
+  const cloud = (() => {
+    const V = "10.14.1", base = "https://www.gstatic.com/firebasejs/" + V + "/";
+    const enabled = !/ВСТАВ/.test(firebaseConfig.apiKey + firebaseConfig.appId);
+    let A, F, auth, db, user = null, ready = false;
+    const ref = () => F.doc(db, "users", user.uid);
+
+    async function loadDoc() {
+      const snap = await F.getDoc(ref());
+      return snap.exists() ? { state: "in", data: snap.data() } : { state: "in", missing: true };
+    }
+    // state: "off" (без хмари) | "out" (не увійшли) | "in" (увійшли)
+    async function init() {
+      if (!enabled) return { state: "off" };
+      try {
+        const [app, au, fs] = await Promise.all([
+          import(base + "firebase-app.js"),
+          import(base + "firebase-auth.js"),
+          import(base + "firebase-firestore.js")
+        ]);
+        A = au; F = fs;
+        const a = app.initializeApp(firebaseConfig);
+        auth = A.getAuth(a); db = F.getFirestore(a);
+        user = await new Promise(res => { const un = A.onAuthStateChanged(auth, u => { un(); res(u); }); });
+        ready = true;
+        return user ? await loadDoc() : { state: "out" };
+      } catch (e) { console.warn("Firebase:", e); ready = false; return { state: "off" }; }
+    }
+    async function signIn() {
+      if (!ready) throw { code: "offline" };
+      const prov = new A.GoogleAuthProvider();
+      prov.setCustomParameters({ prompt: "select_account" });
+      try { user = (await A.signInWithPopup(auth, prov)).user; }
+      catch (e) {
+        if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
+          await A.signInWithRedirect(auth, prov); return null;   // після повернення спрацює init()
+        }
+        throw e;
+      }
+      return loadDoc();
+    }
+    async function signOut() {
+      if (!ready) return;
+      try { await A.signOut(auth); } catch (e) { console.warn("Auth:", e); }
+      user = null;
+    }
+    // створює профіль або оновлює нікнейм/аватарку (баланс клієнт змінити не може — це в rules)
+    async function saveProfile(p) {
+      if (!ready || !user) return;
+      try {
+        const snap = await F.getDoc(ref());
+        if (snap.exists()) await F.updateDoc(ref(), { nick: p.nick, avatar: p.avatar });
+        else await F.setDoc(ref(), { nick: p.nick, avatar: p.avatar, balance: 1000, stats: normStats(), awards: {}, createdAt: F.serverTimestamp() });
+      } catch (e) { console.warn("Firestore:", e); }
+    }
+    const suggestNick = () => ((user && user.displayName) || "").trim().split(/\s+/)[0].slice(0, 16);
+    // Відправка результатів: у транзакції читаємо хмарний стан, додаємо результати, пишемо назад.
+    let syncing = null;
+    async function pushOnce() {
+      if (!state.outbox.length) return true;
+      if (!ready || !user || !state.profile) return false;
+      if (!(await F.getDoc(ref())).exists()) await saveProfile(state.profile);
+      const items = state.outbox.slice(0, 20);
+      const b = await F.runTransaction(db, async tx => {
+        const cur = await tx.get(ref());
+        if (!cur.exists()) throw new Error("no-doc");
+        let x = fromDoc(cur.data());
+        for (const it of items) x = applyItem(x, it);
+        tx.update(ref(), { nick: state.profile.nick, avatar: state.profile.avatar, balance: x.balance, stats: x.stats, awards: x.awards, inv: x.inv, opened: x.opened, loadout: x.loadout, skin: x.skin || "" });
+        return x;
+      });
+      state.outbox = state.outbox.slice(items.length);
+      rebase(b); save(); render();
+      return true;
+    }
+    function sync() {
+      if (syncing) return syncing;
+      syncing = (async () => {
+        try { for (let i = 0; i < 5 && state.outbox.length; i++) if (!(await pushOnce())) return false; return true; }
+        catch (e) { console.warn("Sync:", e); return false; }
+        finally { syncing = null; }
+      })();
+      return syncing;
+    }
+    // підтягнути свіжий стан з хмари (повернулись у вкладку, іншим пристроєм могли зіграти)
+    async function refresh() {
+      if (!ready || !user || !state.profile) return;
+      await sync();
+      if (state.outbox.length) return;
+      try {
+        const r = await loadDoc();
+        if (r.data) { state.profile = { nick: r.data.nick, avatar: r.data.avatar }; rebase(fromDoc(r.data)); save(); render(); }
+      } catch (e) { console.warn("Refresh:", e); }
+    }
+    // Мультиплеєр: хост рахує бій і щоразу публікує знімок стану, гість надсилає лише команди.
+    const mp = (() => {
+      const R = c => F.doc(db, "rooms", c), L = (c, k) => F.doc(db, "rooms", c, "live", k);
+      const err = code => Object.assign(new Error(code), { code });
+      const warn = e => console.warn("MP:", e);
+      const ok = () => ready && !!user;
+      async function create(o) {
+        const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        for (let t = 0; t < 5; t++) {
+          const code = Array.from({ length: 4 }, () => A[Math.floor(Math.random() * A.length)]).join("");
+          if ((await F.getDoc(R(code))).exists()) continue;
+          await F.setDoc(R(code), { host: user.uid, hostNick: o.nick, guest: null, guestNick: "", status: "open", winner: 0, pub: !!o.pub, mode: o.mode, map: o.map, cols: o.cols, rows: o.rows, createdAt: F.serverTimestamp() });
+          return code;
+        }
+        throw err("busy");
+      }
+      async function join(code, nick) {
+        let out;
+        await F.runTransaction(db, async tx => {
+          const sn = await tx.get(R(code));
+          if (!sn.exists()) throw err("notfound");
+          out = sn.data();
+          if (out.status !== "open" || out.guest) throw err("full");
+          if (out.host === user.uid) throw err("self");
+          tx.update(R(code), { guest: user.uid, guestNick: nick, status: "playing" });
+        });
+        return { id: code, mode: out.mode, map: out.map, cols: out.cols, rows: out.rows };
+      }
+      async function quick(nick) {
+        const q = F.query(F.collection(db, "rooms"), F.where("status", "==", "open"), F.where("pub", "==", true), F.limit(8));
+        for (const d of (await F.getDocs(q)).docs) {
+          const v = d.data(), t = v.createdAt && v.createdAt.toMillis ? v.createdAt.toMillis() : Date.now();
+          if (v.host === user.uid || Date.now() - t > 600000) continue;
+          try { return await join(d.id, nick); } catch (e) { if (e.code === "permission-denied") throw e; }
+        }
+        return null;
+      }
+      const watch = (ref, cb) => F.onSnapshot(ref, sn => { if (sn.exists()) cb(sn.data()); }, warn);
+      return {
+        ok, create, join, quick,
+        onRoom: (c, cb) => watch(R(c), cb), onState: (c, cb) => watch(L(c, "state"), cb), onCmd: (c, cb) => watch(L(c, "cmd"), cb),
+        push: (c, j) => F.setDoc(L(c, "state"), { j }).catch(warn), putCmd: (c, j) => F.setDoc(L(c, "cmd"), { j }).catch(warn),
+        finish: (c, w) => F.updateDoc(R(c), { status: "done", winner: w }).catch(warn), remove: c => F.deleteDoc(R(c)).catch(warn)
+      };
+    })();
+    return { enabled, init, signIn, signOut, saveProfile, suggestNick, mp, sync, refresh, uid: () => (user ? user.uid : null) };
+  })();
+
+  /* ================= profile ================= */
+  function render() {
+    const p = state.profile;
+    $("#nick").textContent = p ? p.nick : "[Нікнейм]";
+    $("#avatar").textContent = p ? p.avatar : "?";
+    $("#balance").textContent = state.balance.toLocaleString("uk-UA");
+  }
+
+  /* ================= dialog ================= */
+  const dlg = $("#dlg");
+  let locked = false;
+  function open({ title, body, actions, lock = false }) {
+    locked = lock;
+    $("#dlg-title").textContent = title;
+    const b = $("#dlg-body"), f = $("#dlg-foot");
+    b.replaceChildren(...[].concat(body));
+    f.replaceChildren(...actions.map(a => {
+      const btn = el("button", { type: "button", className: "btn" + (a.primary ? " solo" : ""), textContent: a.label });
+      btn.addEventListener("click", () => { buzz(); a.onClick ? a.onClick() : dlg.close(); });
+      return btn;
+    }));
+    if (!dlg.open) dlg.showModal();
+  }
+  dlg.addEventListener("click", e => { if (e.target === dlg && !locked) dlg.close(); });
+  dlg.addEventListener("cancel", e => { if (locked) e.preventDefault(); });
+
+  function askNick(first = false) {
+    const input = el("input", {
+      className: "field", maxLength: 16, autocomplete: "off", spellcheck: false,
+      placeholder: "Наприклад, Сержант", value: state.profile ? state.profile.nick : cloud.suggestNick()
+    });
+    const err = el("div", { className: "err" });
+    const submit = () => {
+      const v = input.value.trim().replace(/\s+/g, " ");
+      if (v.length < 2) { err.textContent = "Мінімум 2 символи."; input.focus(); return; }
+      state.profile = { nick: v, avatar: state.profile ? state.profile.avatar : AVATARS[0] };
+      save(); render(); dlg.close(); cloud.saveProfile(state.profile).then(() => cloud.sync());
+    };
+    input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+    open({
+      lock: first,
+      title: first ? "Хто йде у бій?" : "Новий нікнейм",
+      body: [el("p", { className: "hint", textContent: "Від 2 до 16 символів. Його бачитимуть інші гравці." }), input, err],
+      actions: [
+        ...(first ? [] : [{ label: "Скасувати" }]),
+        { label: first ? "У бій" : "Зберегти", primary: true, onClick: submit }
+      ]
+    });
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function showLogin(msg = "") {
+    const err = el("div", { className: "err", textContent: msg });
+    open({
+      title: "Вхід",
+      lock: true,
+      body: [
+        el("p", { textContent: "Увійдіть через Google, щоб зберегти профіль, баланс та інвентар і грати з будь-якого пристрою." }),
+        err
+      ],
+      actions: [{ label: "Увійти через Google", primary: true, onClick: async () => {
+        err.textContent = "";
+        try { const r = await cloud.signIn(); if (r) await afterAuth(r); }
+        catch (e) {
+          err.textContent = e.code === "auth/popup-closed-by-user" ? "Вікно входу закрито. Спробуйте ще раз."
+            : e.code === "offline" ? "Немає зʼєднання з Firebase. Перевірте інтернет."
+            : "Не вдалося увійти (" + (e.code || "помилка") + ").";
+        }
+      } }]
+    });
+  }
+
+  async function afterAuth(r) {
+    queueImport(cloud.uid());
+    if (r.data) {                                   // профіль уже є в Firestore: стата, медалі, баланс — з акаунта
+      state.profile = { nick: r.data.nick, avatar: r.data.avatar };
+      rebase(fromDoc(r.data)); save(); render(); dlg.close(); cloud.sync(); return;
+    }
+    if (state.profile) {                            // локальний профіль → у хмару
+      await cloud.saveProfile(state.profile);
+      rebase(fromDoc(null)); save(); render(); dlg.close(); cloud.sync(); return;
+    }
+    save(); askNick(true);                          // новий гравець
+  }
+
+  function askAvatar() {
+    const cur = state.profile ? state.profile.avatar : AVATARS[0];
+    const grid = el("div", { className: "picks" });
+    AVATARS.forEach(a => {
+      const b = el("button", { type: "button", className: "pick", textContent: a, ariaLabel: "Аватарка " + a });
+      b.setAttribute("aria-pressed", String(a === cur));
+      b.addEventListener("click", () => {
+        buzz();
+        if (!state.profile) return;
+        state.profile.avatar = a; save(); render(); dlg.close(); cloud.saveProfile(state.profile);
+      });
+      grid.append(b);
+    });
+    open({ title: "Аватарка", body: grid, actions: [{ label: "Закрити" }] });
+  }
+
+  function switchAccount() {
+    open({
+      title: "Змінити акаунт?",
+      body: el("p", { textContent: cloud.enabled ? "Ви вийдете з акаунта Google. Профіль залишиться збереженим, повернетесь, увійшовши знову." : "Нікнейм і аватарка цього пристрою буде скинуто. Ви зможете створити новий профіль." }),
+      actions: [
+        { label: "Скасувати" },
+        { label: "Змінити", primary: true, onClick: async () => {
+          if (cloud.enabled) {
+            await cloud.sync();
+            if (state.outbox.length) return open({ title: "Немає зв’язку", body: el("p", { textContent: "Частину результатів ще не збережено в акаунті. Змініть акаунт, коли зʼявиться інтернет, щоб нічого не втратити." }), actions: [{ label: "Зрозуміло", primary: true }] });
+          }
+          state.profile = null; state.balance = defaults.balance; state.pending = []; state.outbox = []; state.imported = ""; state.awards = {}; state.stats = normStats(); state.inv = {}; state.opened = 0; state.loadout = []; state.skin = ""; save(); render();
+          if (cloud.enabled) { await cloud.signOut(); showLogin(); } else askNick(true);
+        } }
+      ]
+    });
+  }
+
+  /* ================= sections ================= */
+  function soon(title, text) {
+    open({ title, body: el("p", { textContent: text }), actions: [{ label: "Зрозуміло", primary: true }] });
+  }
+
+  function unitRow(id, n) {
+    const q = UN[id], r = el("div", { className: "urow" }, pic("img/" + id + ".png", q.e),
+      el("div", { className: "ui" }, el("b", { textContent: uName(id) }), el("small", { textContent: RAR[q.r][0] + " · " + statLine(q) + " · " + q.cost + " W" })),
+      el("span", { className: "cnt", textContent: "×" + n }));
+    r.style.setProperty("--rc", RAR[q.r][1]); return r;
+  }
+  function skinRow(id, n) {
+    const q = SK[id], on = state.skin === id, r = el("div", { className: "urow tap" }, pic("img/" + id + ".png", q.e),
+      el("div", { className: "ui" }, el("b", { textContent: q.name }), el("small", { textContent: RAR[q.r][0] + " · скін" + (on ? " · ✓ одягнено" : "") })),
+      el("span", { className: "cnt", textContent: "×" + n }));
+    r.setAttribute("aria-pressed", String(on)); r.style.setProperty("--rc", RAR[q.r][1]);
+    r.addEventListener("click", () => { buzz(); setSkin(on ? "" : id); inventory(); });
+    return r;
+  }
+  function setSkin(id) {
+    if ((state.skin || "") === id) return;
+    state.outbox = state.outbox.filter(x => x.sk === undefined); commit({ sk: id });
+  }
+  function inventory() {
+    const got = Object.keys(MEDALS).filter(k => state.awards[k]), own = Object.keys(UN).filter(id => state.inv[id] > 0).sort((a, b) => UN[a].p - UN[b].p),
+      skins = Object.keys(SK).filter(id => state.inv[id] > 0).sort((a, b) => SK[a].p - SK[b].p);
+    open({
+      title: "Інвентар",
+      body: [
+        el("p", { className: "hint", textContent: "Юніти · обирай до 3 на початку бою" }),
+        own.length ? own.map(id => unitRow(id, state.inv[id])) : el("div", { className: "empty", textContent: "Юнітів ще немає. Відкрий ALPHACASE у магазині." }),
+        el("p", { className: "hint", textContent: "Скіни · торкнись, щоб одягнути на базових юнітів" }),
+        skins.length ? skins.map(id => skinRow(id, state.inv[id])) : el("div", { className: "empty", textContent: "Скінів ще немає. Відкрий MilitaryAttack у магазині." }),
+        el("p", { className: "hint", textContent: "Медалі" }),
+        got.length ? got.map(k => el("div", { className: "row" }, el("span", { textContent: MEDALS[k][0] + " " + MEDALS[k][1] })))
+          : el("div", { className: "empty", textContent: "Медалей ще немає. Вигравайте бої проти ботів." })
+      ].flat(),
+      actions: [{ label: "Закрити" }]
+    });
+  }
+
+  const SHOP = [["🎁", "Кейси"], ["🪖", "Дивізії"], ["🎨", "Оформлення"], ["⚡", "Бусти"]];
+  function caseCard(cs) {
+    const rows = cs.items.map(id => { const q = IT(id), r = el("div", { className: "crow" }, el("i"), el("span", { textContent: iName(id) }), el("em", { textContent: q.p + "%" })); r.style.setProperty("--rc", RAR[q.r][1]); return r; });
+    const go = el("button", { type: "button", className: "btn solo", textContent: "Відкрити · " + cs.price + " W" });
+    go.addEventListener("click", () => { buzz(); openCase(cs); });
+    return el("div", { className: "case-card" }, el("div", { className: "case-art" }, pic(cs.art, cs.ic)),
+      el("div", { className: "case-info" }, el("b", { textContent: cs.name }), el("span", { textContent: cs.desc }), go),
+      el("div", { className: "case-list" }, rows));
+  }
+  function shopView() {
+    const tabs = $("#shop-tabs"), grid = $("#shop-grid"), ban = $(".shop-banner");
+    const fill = k => {
+      tabs.querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === k));
+      ban.style.display = k === 0 ? "none" : "";
+      grid.replaceChildren(...(k === 0 ? [caseCard(CASE), caseCard(MIL)] : Array.from({ length: 6 }, () => el("div", { className: "slot" }, el("span", { textContent: "🔒" }), el("small", { textContent: "Скоро" })))));
+    };
+    tabs.replaceChildren(...SHOP.map(([ic, t], i) => { const b = el("button", { type: "button", textContent: ic + " " + t }); b.addEventListener("click", () => { buzz(); fill(i); }); return b; }));
+    $("#shop-bal").textContent = state.balance.toLocaleString("uk-UA");
+    fill(0); $("#shop").classList.add("on");
+  }
+  // ---- відкриття кейсу (рулетка як у CS2) ----
+  let ac;
+  function tone(f, d = .05, v = .05, type = "square") {
+    if (!state.settings.sound) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d);
+    } catch {}
+  }
+  const rnd01 = () => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; };
+  const rollWeighted = (r, cs = CASE) => { let x = r * 100; for (const id of cs.items) { x -= IT(id).p; if (x < 0) return id; } return cs.items[cs.items.length - 1]; };
+  let rollEl;
+  function openCase(cs = CASE) {
+    if (state.balance < CASE.price) return soon("Не вистачає W", "Кейс коштує " + CASE.price + " W. Вигравай бої проти ботів, щоб заробити.");
+    const id = rollWeighted(rnd01(), cs);
+    commit({ cs: 1, id });                 // гроші списуються й предмет записується одразу, до анімації
+    showRoll(id, cs);
+  }
+  function showRoll(id, cs = CASE) {
+    if (!rollEl) { rollEl = el("section", { id: "roll" }); document.body.append(rollEl); }
+    const cw = Math.round(Math.min(150, Math.max(104, innerWidth / 3.1))), ch = Math.round(cw * 1.2), N = 60, WIN = 50;
+    const rcard = u => { const q = IT(u), c = el("div", { className: "rc" }, pic("img/" + u + ".png", q.e), el("small", { textContent: q.name })); c.style.setProperty("--rc", RAR[q.r][1]); return c; };
+    const strip = el("div", { className: "strip" }, Array.from({ length: N }, (_, i) => rcard(i === WIN ? id : rollWeighted(Math.random(), cs))));
+    const reel = el("div", { className: "reel" }, strip); reel.style.setProperty("--cw", cw + "px"); reel.style.height = ch + "px";
+    const res = el("div", { className: "res" }), act = el("div", { className: "roll-act" });
+    const skip = el("button", { type: "button", className: "btn", textContent: "Пропустити" });
+    act.append(skip);
+    rollEl.replaceChildren(el("h2", { textContent: cs.name }), reel, res, act);
+    rollEl.classList.add("on");
+    const rw = reel.clientWidth, target = WIN * cw + cw / 2 + (Math.random() - .5) * cw * .7 - rw / 2, dur = 6500;
+    let t0 = null, done = false, last = -1, raf = 0;
+    const close = () => { rollEl.classList.remove("on"); const b = $("#shop-bal"); if (b) b.textContent = state.balance.toLocaleString("uk-UA"); };
+    const reveal = () => {
+      const q = IT(id), c = RAR[q.r][1], idx = ["co", "ex", "ep", "le", "se", "sp"].indexOf(q.r);
+      const card = el("div", { className: "rev" }, el("div", { className: "flash" }), pic("img/" + id + ".png", q.e), el("small", { textContent: RAR[q.r][0] }),
+        el("b", { textContent: iName(id) }), el("p", { textContent: UN[id] ? q.d : "Скін для базових юнітів" }), el("div", { className: "ustat", textContent: UN[id] ? statLine(q) + " · " + q.cost + " W" : "Одягни в інвентарі" }));
+      card.style.setProperty("--rc", c); res.replaceChildren(card);
+      const again = el("button", { type: "button", className: "btn solo", textContent: "Ще раз · " + cs.price + " W" });
+      again.addEventListener("click", () => { buzz(); close(); openCase(cs); });
+      if (state.balance < cs.price) again.disabled = true;
+      const ok = el("button", { type: "button", className: "btn", textContent: "Забрати" });
+      ok.addEventListener("click", () => { buzz(); close(); });
+      act.replaceChildren(ok, again);
+      [523, 659, 784, 1047, 1319, 1568].slice(0, idx + 2).forEach((f, k) => setTimeout(() => tone(f, .25, .06, "triangle"), k * 110));
+      if (state.settings.vibrate && navigator.vibrate) navigator.vibrate(idx >= 3 ? [40, 40, 90] : 25);
+    };
+    const finish = () => { if (done) return; done = true; cancelAnimationFrame(raf); strip.style.transform = "translateX(" + -target + "px)"; reveal(); };
+    const step = t => {
+      if (done) return; if (t0 === null) t0 = t;
+      const k = Math.min(1, (t - t0) / dur), pos = target * (1 - Math.pow(1 - k, 4));
+      strip.style.transform = "translateX(" + -pos + "px)";
+      const i = Math.floor((pos + rw / 2) / cw); if (i !== last) { last = i; tone(640 + (i % 3) * 60, .03, .035); }
+      if (k < 1) raf = requestAnimationFrame(step); else finish();
+    };
+    skip.addEventListener("click", () => { buzz(); finish(); });
+    raf = requestAnimationFrame(step);
+  }
+  // ---- вибір колоди перед боєм (до 3 юнітів) ----
+  function setLoadout(ids) {
+    if (JSON.stringify(ids) === JSON.stringify(state.loadout)) return;
+    state.outbox = state.outbox.filter(x => !x.lo); commit({ lo: ids });
+  }
+  function deckThen(fn, secs = 0) {
+    const owned = Object.keys(UN).filter(id => state.inv[id] > 0).sort((a, b) => UN[a].p - UN[b].p);
+    if (!owned.length) return fn();
+    const sel = state.loadout.filter(id => state.inv[id] > 0).slice(0, 3);
+    let left = secs, tm = 0;
+    const note = el("p", { className: "hint" }), grid = el("div", { className: "dgrid" });
+    const paint = () => { btns.forEach(([id, b]) => b.setAttribute("aria-pressed", String(sel.includes(id)))); note.textContent = "Обрано " + sel.length + " / 3. Стандартна дивізія доступна завжди."; };
+    const btns = owned.map(id => {
+      const q = UN[id], b = el("button", { type: "button", className: "ucard" }, pic("img/" + id + ".png", q.e), el("b", { textContent: q.n }), el("small", { textContent: q.name }),
+        el("em", { textContent: "×" + state.inv[id] }), el("small", { className: "st", textContent: "❤" + q.hp + " ⚡" + q.spd + " ⚔" + q.atk }));
+      b.style.setProperty("--rc", RAR[q.r][1]);
+      b.addEventListener("click", () => { buzz(); const i = sel.indexOf(id); if (i >= 0) sel.splice(i, 1); else if (sel.length < 3) sel.push(id); paint(); });
+      return [id, b];
+    });
+    grid.append(...btns.map(x => x[1])); paint();
+    const go = () => { clearInterval(tm); setLoadout(sel.slice()); dlg.close(); fn(); };
+    open({ title: "Обери юнітів", lock: true, body: [note, grid], actions: [{ label: "У бій" + (secs ? " (" + secs + ")" : ""), primary: true, onClick: go }] });
+    if (secs) { const bt = $("#dlg-foot .btn"); tm = setInterval(() => { if (--left <= 0) go(); else bt.textContent = "У бій (" + left + ")"; }, 1000); }
+  }
+  $("#shop-back").addEventListener("click", () => { buzz(); $("#shop").classList.remove("on"); });
+
+  function statsView() {
+    const st = state.stats, pc = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
+    const fmt = t => { t = Math.round(t); return t >= 3600 ? Math.floor(t / 3600) + " г " + Math.floor(t % 3600 / 60) + " хв" : Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+    const L = [
+      ["Партій", st.g + " · перемог " + st.w + " (" + pc(st.w, st.g) + ")"],
+      ["Бій насмерть", st.m.kill[1] + " / " + st.m.kill[0] + (st.best.kill ? " · рекорд " + fmt(st.best.kill) : "")],
+      ["Утримання", st.m.hold[1] + " / " + st.m.hold[0] + (st.best.hold ? " · рекорд " + fmt(st.best.hold) : "")],
+      ["Мультиплеєр", (st.mp ? st.mp[1] + " / " + st.mp[0] : "0 / 0")],
+      ["Легка", st.d.easy[1] + " / " + st.d.easy[0]], ["Нормальна", st.d.normal[1] + " / " + st.d.normal[0]], ["Складна", st.d.hard[1] + " / " + st.d.hard[0]],
+      ["Знищено дивізій", st.k], ["Втрачено дивізій", st.l], ["Час у боях", fmt(st.t)],
+      ["Кейсів відкрито", state.opened || 0],
+      ["Медалі", Object.keys(MEDALS).filter(k => state.awards[k]).length + " / " + Object.keys(MEDALS).length]
+    ];
+    open({ title: "Статистика", body: L.map(([a, b]) => el("div", { className: "row", textContent: a + ": " + b })), actions: [{ label: "Закрити" }] });
+  }
+
+  function settings() {
+    const defs = [
+      ["sound", "Звук"],
+      ["vibrate", "Вібрація"],
+      ["bgAnim", "Анімований фон"]
+    ];
+    const rows = defs.map(([k, label]) => {
+      const t = el("button", { type: "button", className: "tog" });
+      t.setAttribute("role", "switch");
+      t.setAttribute("aria-label", label);
+      const sync = () => t.setAttribute("aria-checked", String(state.settings[k]));
+      sync();
+      t.addEventListener("click", () => {
+        state.settings[k] = !state.settings[k]; save(); sync(); buzz();
+        if (k === "bgAnim") field.setRunning(state.settings.bgAnim);
+      });
+      return el("div", { className: "row" }, el("span", { textContent: label }), t);
+    });
+    open({ title: "Налаштування", body: rows, actions: [{ label: "Закрити", primary: true }] });
+  }
+
+  const actions = {
+    solo: () => game.pick(),
+    multi: () => game.multi(),
+    inventory, settings, stats: statsView, shop: shopView
+  };
+
+  /* ================= background: war of dots ================= */
+  const field = (() => {
+    const cv = $("#field"), ctx = cv.getContext("2d");
+    const GAP = 30;
+    let cols, rows, owner, w, h, dpr, timer = null, raf = 0;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function layout() {
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      w = innerWidth; h = innerHeight;
+      cv.width = w * dpr; cv.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cols = Math.ceil(w / GAP) + 1; rows = Math.ceil(h / GAP) + 1;
+      owner = new Uint8Array(cols * rows);
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const t = x / cols, n = Math.random() * .16;
+        owner[y * cols + x] = t + n < .26 ? 1 : t + n > .74 ? 2 : 0;
+      }
+      draw();
+    }
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const o = owner[y * cols + x];
+        ctx.beginPath();
+        ctx.arc(x * GAP + 4, y * GAP + 4, o ? 3 : 1.8, 0, 6.283);
+        ctx.fillStyle = o === 1 ? "rgba(210,166,74,.55)" : o === 2 ? "rgba(210,65,47,.55)" : "rgba(236,228,207,.12)";
+        ctx.fill();
+      }
+    }
+    function step() {
+      for (let i = 0; i < 3; i++) {
+        const x = (Math.random() * cols) | 0, y = (Math.random() * rows) | 0;
+        const o = owner[y * cols + x]; if (!o) continue;
+        const d = [[1,0],[-1,0],[0,1],[0,-1]][(Math.random() * 4) | 0];
+        const nx = x + d[0], ny = y + d[1];
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        const t = owner[ny * cols + nx];
+        if (t !== o && Math.random() < (t ? .5 : .85)) owner[ny * cols + nx] = o;
+      }
+      cancelAnimationFrame(raf); raf = requestAnimationFrame(draw);
+    }
+    function setRunning(on) {
+      clearInterval(timer); timer = null;
+      if (on && !reduce) timer = setInterval(step, 220);
+    }
+    let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(layout, 150); });
+    document.addEventListener("visibilitychange", () => setRunning(!document.hidden && state.settings.bgAnim));
+    layout();
+    return { setRunning };
+  })();
+
+  /* ================= game: Самотня війна ================= */
+  const game = (() => {
+    const g = $("#game"), cv = $("#gcv"), cx = cv.getContext("2d"), mon = $("#g-mon"), deckEl = $("#deck");
+    const BASE = 1.6, ROAD = 1.5, MTN = .6, COST = 100, CAP = 14, COLL = 1.5, ATK = 3.2, R = 4.2, HP = 100;
+    let net = null, stepAcc = 0, diff = "easy", mode = "kill", mapi = 0, pts = [], score = [0, 0, 0], kills = 0, tm = 0, lost = 0, autoT = 0, fdt = .1, pt;
+    const COL = [null, "210,166,74", "210,65,47"];
+    let hudTxt = "", hudBuy = null;
+    const SPREAD = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1],[2,0],[-2,0],[0,2]];
+    let W, H, hh, dpr, cols, rows, cs, ox, oy, own, road, cm, cities, roads, divs, money, sel, run = false, paused = false, raf = 0, last = 0, acc = 0, aiT = 0, nid = 1;
+    const idx = (x, y) => y * cols + x;
+    const inb = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows;
+    const cell = d => idx(Math.min(cols - 1, Math.max(0, d.x | 0)), Math.min(rows - 1, Math.max(0, d.y | 0)));
+    const cOwn = c => own[idx(c.x, c.y)];
+
+    let inf, hc, mt, tex;
+    const N4 = [[1,0],[-1,0],[0,1],[0,-1]];
+    const land = i => hc[i] >= .42, MT = i => mt[i] > .62;
+    const minS = () => Math.min(W / cols, (H - hh) / rows);
+    function clampCam() {
+      cs = Math.min(40, Math.max(minS(), cs));
+      const mw = cols * cs, mh = rows * cs;
+      ox = mw <= W ? (W - mw) / 2 : Math.min(0, Math.max(W - mw, ox));
+      oy = mh <= H - hh ? hh + (H - hh - mh) / 2 : Math.min(hh, Math.max(H - mh, oy));
+    }
+    function fit() {
+      W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
+      hh = $(".hud").offsetHeight; cv.width = W * dpr; cv.height = H * dpr; clampCam();
+    }
+    const GOAL = 1500, CAPT = 5, CAPR = 2.2;   // бали для перемоги, секунд на захоплення, радіус точки
+    const MAPS = {
+      kill: [{ name: "Рівнини", desc: "Відкрита місцевість, мало гір", seed: 11, flat: 1 },
+             { name: "Затока", desc: "Море посередині: прохід узбережжям і мостом", seed: 22, gulf: .45 },
+             { name: "Хребет", desc: "Гірський пояс із перевалами", seed: 33, ridge: .35 }],
+      hold: [{ name: "Річкова долина", desc: "Річка посередині, мости до точок", seed: 44, river: .5 },
+             { name: "Нагір'я", desc: "Точки в горах, повільні маневри", seed: 55, ridge: .3 },
+             { name: "Озерний край", desc: "Точка B на острові посеред озера", seed: 66, gulf: .4 }]
+    };
+    const rng = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const mk = r => {
+      const t = Array.from({ length: 1024 }, () => r());
+      const n = (x, y) => {
+        const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+        const v = (a, b) => t[((iy + b) & 31) * 32 + ((ix + a) & 31)];
+        return (v(0, 0) * (1 - sx) + v(1, 0) * sx) * (1 - sy) + (v(0, 1) * (1 - sx) + v(1, 1) * sx) * sy;
+      };
+      return (x, y) => (n(x, y) * .5 + n(x * 2, y * 2) * .25 + n(x * 4, y * 4) * .125 + n(x * 8, y * 8) * .0625) / .9375;
+    };
+
+    /* ---------- карта: море, узбережжя, ліси, гори ---------- */
+    function gen() {
+      const horiz = cols >= rows, L = horiz ? cols : rows, N = cols * rows;
+      const M = MAPS[mode][mapi], rnd = rng(M.seed), fa = mk(rnd), fb = mk(rnd), fc = mk(rnd);
+      hc = new Float32Array(N); mt = new Float32Array(N); own = new Uint8Array(N); cm = new Uint8Array(N); road = new Uint8Array(N);
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const i = idx(x, y), u = x / (cols - 1), v = y / (rows - 1);
+        const lu = horiz ? u : v, lv = horiz ? v : u, g2 = z => z * z;
+        hc[i] = fa(x * .06, y * .06) * .75 + (1 - .8 * Math.pow(Math.abs(2 * u - 1), 3) - .8 * Math.pow(Math.abs(2 * v - 1), 3)) * .4
+          - (M.gulf || 0) * Math.exp(-(g2((lu - .5) / .14) + g2((lv - .5) / .3))) - (M.river || 0) * Math.exp(-g2((lu - .5) / .03));
+        mt[i] = fb(x * .09, y * .09) - (M.flat ? .12 : 0) + (M.ridge || 0) * Math.exp(-g2((lu - .5) / .08));
+      }
+      const carve = (cx0, cy0, r) => { for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const x = cx0 + dx, y = cy0 + dy; if (!inb(x, y) || Math.hypot(dx, dy) > r + .3) continue;
+        const i = idx(x, y); hc[i] = Math.max(hc[i], .56); mt[i] = Math.min(mt[i], .5); } };
+      const P = (u, v) => { const a = Math.round(u * (L - 1)), b = Math.round(v * ((horiz ? rows : cols) - 1)); return horiz ? [a, b] : [b, a]; };
+      // місто лівої половини + дзеркальна копія для справедливості
+      const cl = [[.06,.5,1],[.27,.22,1],[.27,.78,1]].map(([u, v, big]) => { const [x, y] = P(u, v); return { x, y, big, o: 1 }; });
+      for (let k = 0; k < 80 && cl.length < 10; k++) {
+        const [x, y] = P(.1 + rnd() * .36, .07 + rnd() * .86);
+        if (hc[idx(x, y)] > .5 && cl.every(c => Math.hypot(c.x - x, c.y - y) > 9)) cl.push({ x, y, big: 0, o: 1 });
+      }
+      const cr = cl.map(c => ({ x: horiz ? cols - 1 - c.x : c.x, y: horiz ? c.y : rows - 1 - c.y, big: c.big, o: 2 }));
+      cities = [cl[0], cr[0], ...cl.slice(1), ...cr.slice(1)];
+      const nL = cl.length; cities.forEach(c => carve(c.x, c.y, 2));
+      // режим «Утримання»: три точки A (з боку гравця), B (центр), C (з боку ворога)
+      pts = mode === "hold" ? [[.4, .2, "A"], [.5, .5, "B"], [.6, .8, "C"]].map(([u, v, l]) => { const [x, y] = P(u, v); return { x, y, l, o: 0, t: 0, c: 0 }; }) : [];
+      pts.forEach(p => carve(p.x, p.y, 2));
+      // дороги: шосе між столицями, мости між великими містами, 2 найближчі сусіди
+      roads = []; const seen = new Set();
+      const line = ([x0, y0], [x1, y1]) => {
+        const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+        for (let i = 0; i <= n; i++) { const x = Math.round(x0 + (x1 - x0) * i / n), y = Math.round(y0 + (y1 - y0) * i / n); road[idx(x, y)] = 1; carve(x, y, 1); }
+      };
+      const pair = (a, b) => {
+        const k = a < b ? a + "-" + b : b + "-" + a; if (seen.has(k)) return; seen.add(k);
+        join(cities[a], cities[b]);
+      };
+      const join = (A, B) => {
+        const off = (rnd() - .5) * 8;
+        let mx = (A.x + B.x) / 2 + (horiz ? 0 : off), my = (A.y + B.y) / 2 + (horiz ? off : 0);
+        mx = Math.round(Math.min(cols - 1, Math.max(0, mx))); my = Math.round(Math.min(rows - 1, Math.max(0, my)));
+        const pp = [[A.x, A.y], [mx, my], [B.x, B.y]]; roads.push(pp); line(pp[0], pp[1]); line(pp[1], pp[2]);
+      };
+      pair(0, 1); for (let k = 2; k <= Math.min(3, nL - 1); k++) pair(k, k + nL - 1);
+      cities.forEach((c, i) => cities.map((d, j) => [j, Math.hypot(c.x - d.x, c.y - d.y)]).filter(a => a[0] !== i)
+        .sort((a, b) => a[1] - b[1]).slice(0, 2).forEach(a => pair(i, a[0])));
+      pts.forEach(p => cities.map(c => [c, Math.hypot(c.x - p.x, c.y - p.y)]).sort((a, b) => a[1] - b[1]).slice(0, 2).forEach(a => join(p, a[0])));
+      // вся суша має власника; початковий фронт — хвиляста лінія посередині
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const i = idx(x, y); if (!land(i)) continue;
+        own[i] = (horiz ? x : y) / (L - 1) + (fc(x * .07, y * .07) - .5) * .3 < .5 ? 1 : 2;
+      }
+      cities.forEach(c => { cm[idx(c.x, c.y)] = 1; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inb(c.x + dx, c.y + dy)) own[idx(c.x + dx, c.y + dy)] = c.o; });
+      buildTex();
+    }
+    function buildTex() {
+      const T = 4, w = cols * T, h = rows * T; tex = document.createElement("canvas"); tex.width = w; tex.height = h;
+      const c = tex.getContext("2d"), im = c.createImageData(w, h), d = im.data;
+      const S = (a, fx, fy) => {
+        fx = Math.min(cols - 1, Math.max(0, fx)); fy = Math.min(rows - 1, Math.max(0, fy));
+        const x = Math.floor(fx), y = Math.floor(fy), x1 = Math.min(cols - 1, x + 1), y1 = Math.min(rows - 1, y + 1), tx = fx - x, ty = fy - y;
+        return (a[y * cols + x] * (1 - tx) + a[y * cols + x1] * tx) * (1 - ty) + (a[y1 * cols + x] * (1 - tx) + a[y1 * cols + x1] * tx) * ty;
+      };
+      const SEA = [28,140,240], BEACH = [172,206,84], LAND = [44,128,56], MTN = [140,140,142], PEAK = [104,104,114];
+      for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+        const fx = (px + .5) / T - .5, fy = (py + .5) / T - .5, e = S(hc, fx, fy), m = S(mt, fx, fy);
+        const k = e < .42 ? SEA : e < .47 ? BEACH : m > .69 ? PEAK : m > .62 ? MTN : LAND, o = (py * w + px) * 4;
+        d[o] = k[0]; d[o + 1] = k[1]; d[o + 2] = k[2]; d[o + 3] = 255;
+      }
+      c.putImageData(im, 0, 0);
+    }
+
+    function spawn(s, c, ut) {
+      const n = { id: nid++, s, x: c.x + .5 + (Math.random() - .5) * 1.6, y: c.y + .5 + (Math.random() - .5) * 1.6, hp: HP, path: [], eng: false, dmg: 0, goal: -1 };
+      setU(n, ut); if (n.mx) n.hp = n.mx; divs.push(n);
+      if (net && net.role === "host" && net.live) emit({ t: "sp", id: n.id, s, x: r2(n.x), y: r2(n.y), u: n.u || 0 });
+    }
+    function pickBig(s) {
+      let best = null, bn = 1e9;
+      for (const c of cities) if (c.big && cOwn(c) === s) {
+        const n = divs.filter(d => d.s === s && Math.hypot(d.x - c.x - .5, d.y - c.y - .5) < 3).length;
+        if (n < bn) { bn = n; best = c; }
+      }
+      return best;
+    }
+    function income() {
+      const r = [0, 0, 0];
+      for (const c of cities) { const o = cOwn(c); if (o) r[o] += c.big ? 1.2 : .35; }
+      return r;
+    }
+
+    /* ---------- pathfinding: A*, дорога = дешевше в 1.5 раза ---------- */
+    function route(a, b) {
+      const N = cols * rows, g = new Float32Array(N).fill(1e9), from = new Int32Array(N).fill(-1), done = new Uint8Array(N);
+      const bx = b % cols, by = (b / cols) | 0;
+      const h = i => { const dx = Math.abs(i % cols - bx), dy = Math.abs(((i / cols) | 0) - by); return (Math.max(dx, dy) + .414 * Math.min(dx, dy)) / ROAD; };
+      const hp = [[h(a), a]]; g[a] = 0;
+      const up = i => { while (i > 0) { const p = (i - 1) >> 1; if (hp[p][0] <= hp[i][0]) break; [hp[p], hp[i]] = [hp[i], hp[p]]; i = p; } };
+      const dn = i => { for (;;) { const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < hp.length && hp[l][0] < hp[m][0]) m = l; if (r < hp.length && hp[r][0] < hp[m][0]) m = r;
+        if (m === i) break; [hp[m], hp[i]] = [hp[i], hp[m]]; i = m; } };
+      while (hp.length) {
+        const top = hp[0], last = hp.pop(); if (hp.length) { hp[0] = last; dn(0); }
+        const i = top[1]; if (done[i]) continue; done[i] = 1; if (i === b) break;
+        const x = i % cols, y = (i / cols) | 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue; const nx = x + dx, ny = y + dy; if (!inb(nx, ny) || !land(idx(nx, ny))) continue;
+          const j = idx(nx, ny), ng = g[i] + (dx && dy ? 1.414 : 1) / (road[i] && road[j] ? ROAD : road[j] || !MT(j) ? 1 : MTN);
+          if (ng < g[j]) { g[j] = ng; from[j] = i; hp.push([ng + h(j), j]); up(hp.length - 1); }
+        }
+      }
+      if (a !== b && from[b] < 0) return [];
+      const out = []; for (let i = b; i !== a && i >= 0; i = from[i]) out.push([i % cols, (i / cols) | 0]);
+      return out.reverse();
+    }
+    const goTo = (d, x, y) => { d.goal = idx(x, y); d.path = route(cell(d), idx(x, y)); };
+
+    /* ---------- симуляція ---------- */
+    function blocked(d, nx, ny) {
+      for (const e of divs) if (e.s !== d.s) {
+        const nd = Math.hypot(e.x - nx, e.y - ny);
+        if (nd < COLL && nd < Math.hypot(e.x - d.x, e.y - d.y)) return true;   // можна лише віддалятись
+      }
+      return false;
+    }
+    function move(dt) {
+      for (const d of divs) {
+        const ci = cell(d); let m = BASE * (road[ci] ? ROAD : MT(ci) ? MTN : 1) * (d.eng ? .4 : 1) * (d.sp || 1) * dt;
+        while (m > 0 && d.path.length) {
+          const [px, py] = d.path[0], dx = px + .5 - d.x, dy = py + .5 - d.y, dist = Math.hypot(dx, dy), k = Math.min(1, m / dist);
+          const nx = d.x + dx * k, ny = d.y + dy * k;
+          if (blocked(d, nx, ny)) break;
+          d.x = nx; d.y = ny; if (k >= 1) { d.path.shift(); m -= dist; } else m = 0;
+        }
+      }
+    }
+    function fight(dt) {
+      for (const d of divs) { d.eng = false; d.dmg = 0; }
+      for (const a of divs) for (const b of divs) if (a.s !== b.s && Math.hypot(a.x - b.x, a.y - b.y) < ATK) {
+        a.eng = true; a.dmg += (1.5 + 3.5 * b.hp / (b.mx || HP)) * (Math.hypot(a.x - b.x, a.y - b.y) < 1.7 ? 1 : .4) * (own[cell(a)] === a.s ? .8 : 1.3) * (a.path.length ? 1.15 : 1) * (b.atk || 1) / (a.def || 1);
+      }
+      for (const d of divs) {
+        d.hp -= d.dmg * dt;
+        if (!d.eng && cities.some(c => c.big && cOwn(c) === d.s && Math.hypot(c.x + .5 - d.x, c.y + .5 - d.y) < 3)) d.hp = Math.min(d.mx || HP, d.hp + 4 * dt);
+      }
+      lost += divs.filter(d => d.hp <= 0 && d.s === 1).length; kills += divs.filter(d => d.hp <= 0 && d.s === 2).length; divs = divs.filter(d => d.hp > 0); sel = sel.filter(id => divs.some(d => d.id === id));
+    }
+    // Оточення. Відрізаний від основної території шматок без своїх дивізій, обведений ворогом:
+    //  · до 25 клітинок (5×5) — здається одразу;
+    //  · більший («котел») — здається за POCK секунд; поки там немає військ, таймер іде, поява дивізії його скидає.
+    // Найбільший шматок території сторони (її «основа») ніколи не вважається котлом.
+    const POCK = 90;
+    function pockets() {
+      const N = cols * rows, seen = new Uint8Array(N), live = new Uint8Array(N), has = [null, new Set(), new Set()], comps = [], flips = [], big = [0, 0, 0];
+      divs.forEach(d => has[d.s].add(cell(d)));
+      for (let s0 = 0; s0 < N; s0++) {
+        const o = own[s0]; if (!o || seen[s0]) continue;
+        const cells = [s0], st = [s0]; seen[s0] = 1; let foe = false, def = false;
+        while (st.length) {
+          const i = st.pop(), x = i % cols, y = (i / cols) | 0;
+          if (has[o].has(i)) def = true;
+          for (const [a, b] of N4) {
+            const nx = x + a, ny = y + b; if (!inb(nx, ny)) continue;
+            const j = idx(nx, ny), q = own[j];
+            if (q === o) { if (!seen[j]) { seen[j] = 1; cells.push(j); st.push(j); } } else if (q) foe = true;
+          }
+        }
+        comps.push({ o, cells, foe, def }); big[o] = Math.max(big[o], cells.length);
+      }
+      for (const c of comps) {
+        if (!c.foe || c.def) continue;
+        const n = c.cells.length;
+        if (n <= 25) { flips.push([c.cells, 3 - c.o]); continue; }
+        if (n === big[c.o]) continue;
+        let age = 1e9; for (const i of c.cells) { pt[i] += fdt; live[i] = 1; if (pt[i] < age) age = pt[i]; }
+        if (age >= POCK) flips.push([c.cells, 3 - c.o]);
+      }
+      for (let i = 0; i < N; i++) if (!live[i]) pt[i] = 0;
+      flips.forEach(([cells, to]) => cells.forEach(i => { own[i] = to; pt[i] = 0; }));
+    }
+    // ФРОНТ: територія не належить нікому «просто так» — її тримає вплив дивізій.
+    // Вплив дивізії = (hp/100) · (1 − d/R)², де d — відстань до клітинки.
+    // Чужа клітинка переходить до сторони, чий вплив там більший, але лише якщо
+    // межує зі своєю територією (без «островів»): лінія фронту суцільна й рухається хвилею.
+    function calcInf() {
+      const N = cols * rows; inf = [null, new Float32Array(N), new Float32Array(N)];
+      for (const d of divs) {
+        const f = inf[d.s], k = d.hp / (d.mx || HP);
+        for (let y = Math.max(0, Math.floor(d.y - R)); y <= Math.min(rows - 1, Math.ceil(d.y + R)); y++)
+          for (let x = Math.max(0, Math.floor(d.x - R)); x <= Math.min(cols - 1, Math.ceil(d.x + R)); x++) {
+            const dd = Math.hypot(x + .5 - d.x, y + .5 - d.y); if (dd < R) { const w = 1 - dd / R; f[idx(x, y)] += k * w * w; }
+          }
+      }
+    }
+    function front() {
+      calcInf();
+      const old = own.slice();
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const i = idx(x, y), o = old[i], a = inf[1][i], b = inf[2][i]; let to = 0;
+        if (o) { const e = 3 - o, ie = inf[e][i], io = inf[o][i]; if (ie > io + (cm[i] ? .5 : .15)) to = e; }   // місто боронити легше
+        if (to && ((x > 0 && old[i - 1] === to) || (x < cols - 1 && old[i + 1] === to) || (y > 0 && old[i - cols] === to) || (y < rows - 1 && old[i + cols] === to))) own[i] = to;
+      }
+      pockets();
+    }
+
+    /* ---------- бот ---------- */
+    const DIFF = {
+      easy:   { inc: .8, cash: 100, think: 2.5, first: 8, group: 6, hp: 80, ret: 0,  smart: 0 },
+      normal: { inc: 1,  cash: 150, think: 1.8, first: 4, group: 4, hp: 70, ret: 40, smart: 1 },
+      hard:   { inc: 1,  cash: 200, think: 1,   first: 2, group: 3, hp: 60, ret: 50, smart: 2 }
+    };
+    const dd = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const oOf = c => c.l ? c.o : cOwn(c);   // власник: точка — сама по собі, місто — за територією
+    // Захоплення точки: дивізія має стояти в радіусі CAPR; дві сторони разом — точка спірна, прогрес стоїть.
+    function capture(dt) {
+      for (const p of pts) {
+        let a = 0, b = 0;
+        for (const d of divs) if (Math.hypot(d.x - p.x - .5, d.y - p.y - .5) <= CAPR) d.s === 1 ? a++ : b++;
+        if (a && b) continue;
+        const s = a ? 1 : b ? 2 : 0;
+        if (s && s !== p.o) { if (p.c !== s) { p.c = s; p.t = 0; } p.t += dt; if (p.t >= CAPT) { p.o = s; p.t = 0; p.c = 0; } }
+        else p.t = Math.max(0, p.t - dt);
+      }
+    }
+    // Складність = розум бота, а не гроші: нормальний відводить поранених на лікування й б'є туди,
+    // де слабше; складний ще й будує підкріплення в найближчому до фронту місті,
+    // добиває слабкі дивізії та щосекунди перенацілює війська.
+    function ai() {
+      const D = DIFF[diff], mine = divs.filter(d => d.s === 2), foes = divs.filter(d => d.s === 1), cap = cities[1];
+      const cen = mine.length ? { x: mine.reduce((a, d) => a + d.x, 0) / mine.length, y: mine.reduce((a, d) => a + d.y, 0) / mine.length } : cap;
+      let home = pickBig(2);
+      if (D.smart > 1) home = cities.filter(c => c.big && cOwn(c) === 2).sort((a, b) => dd(a, cities[0]) - dd(b, cities[0]))[0] || home;
+      if (home && money[2] >= COST && mine.length < CAP) { money[2] -= COST; spawn(2, home); }
+      const score = c => D.smart ? dd(c, cen) - (c.big ? 10 : 0) + foes.filter(p => dd(p, c) < 7).length * (D.smart > 1 ? 7 : 3) : dd(c, cap);
+      const tg = (mode === "hold" ? pts : cities).filter(c => oOf(c) !== 2).sort((a, b) => score(a) - score(b))[0];
+      const th = foes.find(p => (mode === "hold" ? pts.concat(cities) : cities).some(c => oOf(c) === 2 && dd(c, p) < 9));
+      const prey = D.smart > 1 && foes.find(p => p.hp < 45 && mine.some(m => dd(m, p) < 10));
+      const t = th || prey, goal = t ? { x: t.x | 0, y: t.y | 0 } : tg, need = t ? 1 : D.group;
+      const ready = mine.filter(d => d.hp >= D.hp && !d.back);
+      for (const d of mine) {
+        if (D.ret && d.hp < D.ret) d.back = true; else if (d.hp >= 85) { d.back = false; d.rt = false; }
+        if (d.back) {
+          if (!d.rt) { d.rt = true; const b = cities.filter(c => c.big && cOwn(c) === 2).sort((p, q) => dd(p, d) - dd(q, d))[0]; if (b) goTo(d, b.x, b.y); }
+          continue;
+        }
+        if (d.eng || (!D.smart && d.path.length)) continue;
+        if (goal && ready.length >= need && d.hp >= D.hp) goTo(d, goal.x, goal.y);
+        else if (!D.ret && !d.path.length && d.hp < 45) { const h0 = pickBig(2); if (h0) goTo(d, h0.x, h0.y); }
+      }
+    }
+    // автоатака: вільна дивізія (без наказу), у радіусі якої є ворог, сама йде в бій
+    function auto() {
+      for (const d of divs) {
+        if (d.path.length || d.back) continue;
+        let best = null, bd = ATK;
+        for (const e of divs) if (e.s !== d.s) { const q = dd(e, d); if (q < bd) { bd = q; best = e; } }
+        if (best && bd > COLL + .15) goTo(d, best.x | 0, best.y | 0);
+      }
+    }
+
+    function end(win, force) {
+      if (!run) return;
+      if (net && net.role === "guest" && !force && !net.done) return;   // кінець бою оголошує хост
+      run = false;
+      if (net && !net.done) { net.done = true; cloud.mp.finish(net.code, net.role === "host" ? (win ? 1 : 2) : (win ? 2 : 1)); }
+      let text = mode === "hold" ? (win ? "Ви першими набрали " + GOAL + " балів." : "Ворог першим набрав " + GOAL + " балів.") : win ? "Ворог втратив усі міста." : "Ви втратили всі міста.";
+      const out = commit({ mp: !!net, mode, diff, win: !!win, tm: Math.round(tm), kills, lost });
+      if (out.gain) text += " Нагорода: +" + out.gain + "." + (out.fresh.length ? " Нові медалі: " + out.fresh.map(k => MEDALS[k][0] + " " + MEDALS[k][1]).join(", ") + "." : "");
+      open({ title: win ? "Перемога!" : "Поразка", lock: true, body: el("p", { textContent: text }),
+        actions: [...(net ? [] : [{ label: "Ще раз", primary: true, onClick: () => { dlg.close(); deckThen(() => start(diff, mode, mapi)); } }]), { label: "У меню", onClick: () => { dlg.close(); stop(); } }] });
+    }
+    function tick(dt) {
+      if (net && net.role === "host") { net.t -= dt; if (net.t <= 0) { net.t = 2.5; flush(true); } }
+      const inc = income(); money[1] += inc[1] * dt; money[2] += inc[2] * dt * (net ? 1 : DIFF[diff].inc); tm += dt; autoT -= dt; if (autoT <= 0) { autoT = .5; auto(); }
+      fight(dt); move(dt);
+      acc += dt; if (acc >= .1) { fdt = acc; acc = 0; front(); }
+      if (!net) { aiT -= dt; if (aiT <= 0) { aiT = DIFF[diff].think; ai(); } }
+      const n = [0, 0, 0]; cities.forEach(c => n[cOwn(c)]++);
+      if (mode === "hold") {
+        capture(dt); for (const p of pts) if (p.o) score[p.o] += 3 * dt;   // кожна точка: 3 бали на секунду
+        if (score[1] >= GOAL) end(true); else if (score[2] >= GOAL) end(false);
+      } else if (!n[2]) end(true); else if (!n[1]) end(false);
+    }
+
+    /* ---------- малювання ---------- */
+    function star(X, Y, r) {
+      const p = new Path2D();
+      for (let k = 0; k < 10; k++) { const a = -1.571 + k * .6283, q = k % 2 ? r * .45 : r; p[k ? "lineTo" : "moveTo"](X + Math.cos(a) * q, Y + Math.sin(a) * q); }
+      p.closePath(); return p;
+    }
+    function draw() {
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.fillStyle = "#1c8cf0"; cx.fillRect(0, 0, W, H);
+      cx.translate(ox, oy); cx.drawImage(tex, 0, 0, cols * cs, rows * cs);
+      const x0 = Math.max(0, Math.floor(-ox / cs)), x1 = Math.min(cols - 1, Math.floor((W - ox) / cs));
+      const y0 = Math.max(0, Math.floor((hh - oy) / cs)), y1 = Math.min(rows - 1, Math.floor((H - oy) / cs));
+      cx.lineCap = "round"; cx.lineJoin = "round"; cx.strokeStyle = "rgba(245,230,170,.6)"; cx.lineWidth = Math.max(1.5, cs * .14);
+      for (const r of roads) { cx.beginPath(); r.forEach(([x, y], i) => cx[i ? "lineTo" : "moveTo"]((x + .5) * cs, (y + .5) * cs)); cx.stroke(); }
+      const hard = new Path2D(), dB = new Path2D(), dR = new Path2D(), r = Math.max(1.6, cs * .27);
+      const bord = (x, y, o) => N4.some(([a, b]) => inb(x + a, y + b) && own[idx(x + a, y + b)] && own[idx(x + a, y + b)] !== o);
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        const i = idx(x, y), o = own[i]; if (!o) continue;
+        cx.fillStyle = o === 1 ? "rgba(40,60,255,.07)" : "rgba(255,30,30,.07)"; cx.fillRect(x * cs, y * cs, cs, cs);
+        if (pt[i] > 0) { cx.fillStyle = "rgba(255,255,255," + (.06 + .3 * Math.min(1, pt[i] / POCK)).toFixed(2) + ")"; cx.fillRect(x * cs, y * cs, cs, cs); }
+        if (x < cols - 1 && own[i + 1] && own[i + 1] !== o) { hard.moveTo((x + 1) * cs, y * cs); hard.lineTo((x + 1) * cs, (y + 1) * cs); }
+        if (y < rows - 1 && own[i + cols] && own[i + cols] !== o) { hard.moveTo(x * cs, (y + 1) * cs); hard.lineTo((x + 1) * cs, (y + 1) * cs); }
+        // солдати стають на фронті там, де за ними є дивізії: перший ряд — край, другий — за ним
+        let dot = false;
+        if (bord(x, y, o)) dot = inf[o][i] > .12;
+        else if (inf[o][i] > .45) dot = N4.some(([a, b]) => inb(x + a, y + b) && own[idx(x + a, y + b)] === o && bord(x + a, y + b, o));
+        if (dot) { const p = o === 1 ? dB : dR, X = (x + .5) * cs, Y = (y + .5) * cs; p.moveTo(X + r, Y); p.arc(X, Y, r, 0, 6.283); }
+      }
+      cx.strokeStyle = "#0a0a0a"; cx.lineWidth = Math.max(2, cs * .2); cx.stroke(hard);
+      cx.fillStyle = "#2a3cf0"; cx.fill(dB); cx.fillStyle = "#f02a2a"; cx.fill(dR);
+      for (const c of cities) {
+        const X = (c.x + .5) * cs, Y = (c.y + .5) * cs, o = cOwn(c);
+        cx.fillStyle = "#ffe81a"; cx.strokeStyle = o === 1 ? "#2a3cf0" : "#f02a2a"; cx.lineWidth = Math.max(1.5, cs * .1);
+        if (c === cities[0] || c === cities[1]) { const p = star(X, Y, Math.max(8, cs * .9)); cx.fill(p); cx.stroke(p); }
+        else { cx.beginPath(); cx.arc(X, Y, c.big ? Math.max(4, cs * .5) : Math.max(2.5, cs * .3), 0, 6.283); cx.fill(); cx.stroke(); }
+      }
+      for (const p of pts) {
+        const X = (p.x + .5) * cs, Y = (p.y + .5) * cs, o = p.o, rr = Math.max(9, cs * .9);
+        cx.strokeStyle = "rgba(255,255,255,.25)"; cx.lineWidth = 1; cx.setLineDash([5, 5]); cx.beginPath(); cx.arc(X, Y, CAPR * cs, 0, 6.283); cx.stroke(); cx.setLineDash([]);
+        cx.fillStyle = "#0a0a0a"; cx.strokeStyle = o === 1 ? "#2a3cf0" : o === 2 ? "#f02a2a" : "#9a9a9a"; cx.lineWidth = Math.max(2.5, cs * .15);
+        cx.beginPath(); cx.arc(X, Y, rr, 0, 6.283); cx.fill(); cx.stroke();
+        cx.fillStyle = "#fff"; cx.font = `700 ${rr * 1.1}px sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(p.l, X, Y + 1);
+        if (p.t > 0) { cx.strokeStyle = p.c === 1 ? "#6f7dff" : "#ff6f6f"; cx.lineWidth = 4; cx.beginPath(); cx.arc(X, Y, rr + 5, -1.571, -1.571 + 6.283 * p.t / CAPT); cx.stroke(); }
+      }
+      for (const d of divs) {
+        const X = d.x * cs, Y = d.y * cs, on = sel.includes(d.id), q = Math.max(3, cs * .22);
+        if (on && d.path.length) { cx.strokeStyle = "rgba(255,255,255,.8)"; cx.lineWidth = 1.5; cx.setLineDash([4, 4]); cx.beginPath(); cx.moveTo(X, Y); d.path.forEach(([x, y]) => cx.lineTo((x + .5) * cs, (y + .5) * cs)); cx.stroke(); cx.setLineDash([]); }
+        if (on) { cx.strokeStyle = "rgba(255,255,255,.25)"; cx.lineWidth = 1; cx.setLineDash([6, 6]); cx.beginPath(); cx.arc(X, Y, ATK * cs, 0, 6.283); cx.stroke(); cx.setLineDash([]); }
+        const w = Math.max(10, cs * 1.1) * (on ? 1.3 : 1), h = w * .6, f = Math.max(0, d.hp / (d.mx || HP)), bh = Math.max(2.5, cs * .16);
+        cx.fillStyle = d.s === 1 ? "#2a3cf0" : "#f02a2a"; cx.strokeStyle = "#0a0a0a"; cx.lineWidth = Math.max(1.5, cs * .08);
+        cx.fillRect(X - w / 2, Y - h / 2, w, h); cx.strokeRect(X - w / 2, Y - h / 2, w, h);
+        const im = d.eng ? null : getImg(d.u ? "img/" + d.u + ".png" : d.s === 1 && skinSrc());
+        if (im) { const sz = h * 1.5; cx.drawImage(im, X - sz / 2, Y - sz / 2, sz, sz); }
+        if (d.u) { cx.strokeStyle = RAR[UN[d.u].r][1]; cx.lineWidth = Math.max(2, cs * .12); cx.strokeRect(X - w / 2, Y - h / 2, w, h);
+          if (!d.eng && !im) { cx.fillStyle = "#fff"; cx.font = `700 ${h * .7}px sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(d.u.slice(2), X, Y + 1); } }
+        cx.fillStyle = "#0a0a0a"; cx.fillRect(X - w / 2, Y - h / 2 - bh - 2, w, bh);
+        cx.fillStyle = f > .5 ? "#4bd13b" : f > .25 ? "#f0c020" : "#e03020"; cx.fillRect(X - w / 2 + 1, Y - h / 2 - bh - 1, (w - 2) * f, bh - 2);
+        if (d.eng) { cx.fillStyle = "#fff"; cx.font = `700 ${h * .8}px sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText("✕", X, Y + 1); }
+        if (on) { cx.strokeStyle = "#fff"; cx.lineWidth = 2; cx.setLineDash([3, 3]); cx.strokeRect(X - w / 2 - 4, Y - h / 2 - bh - 6, w + 8, h + bh + 10); cx.setLineDash([]); }
+      }
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (mode === "hold") {
+        const bx = W / 2 - 95, by = hh + 8;
+        cx.fillStyle = "#08140fd9"; cx.fillRect(bx, by, 190, 26);
+        pts.forEach((p, k) => { const X = bx + 18 + k * 24; cx.fillStyle = p.o === 1 ? "#2a3cf0" : p.o === 2 ? "#f02a2a" : "#9a9a9a"; cx.beginPath(); cx.arc(X, by + 13, 9, 0, 6.283); cx.fill(); cx.fillStyle = "#fff"; cx.font = "700 11px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(p.l, X, by + 14); });
+        cx.textAlign = "left"; cx.font = "700 13px sans-serif"; cx.fillStyle = "#ece4cf"; cx.fillText(Math.floor(score[1]) + " : " + Math.floor(score[2]) + " / " + GOAL, bx + 82, by + 14);
+      }
+      if (paused || (net && !net.sync)) { cx.fillStyle = "#08140faa"; cx.fillRect(0, 0, W, H); cx.fillStyle = "#ece4cf"; cx.font = "400 32px 'Russo One',sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(paused ? "ПАУЗА" : "З’єднання…", W / 2, H / 2); }
+      const inc = income(), mine = divs.filter(d => d.s === 1).length;
+      const txt = Math.floor(money[1]) + " +" + inc[1].toFixed(1).replace(/\.0$/, "") + "/с · " + mine + "/" + CAP;
+      if (txt !== hudTxt) { hudTxt = txt; mon.textContent = txt; }     // DOM чіпаємо лише коли щось змінилось
+      const pb = !!pickBig(1), can = cards.map(c => pb && mine < CAP && money[1] >= costOf(c.u)), key = can.join();
+      if (key !== hudBuy) { hudBuy = key; cards.forEach((c, i) => c.b.classList.toggle("off", !can[i])); }
+    }
+    function frame(t) {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min(.1, (t - last) / 1000 || 0); last = t;
+      if (run && !paused) { stepAcc += dt; while (stepAcc >= .05 && run) { stepAcc -= .05; tick(.05); } if (net && net.role === "guest") glide(dt); }
+      draw();
+    }
+
+    /* ---------- керування ---------- */
+    const ptr = new Map(); let pinch = 0, moved = false;
+    function zoomAt(mx, my, k) {
+      const ns = Math.min(40, Math.max(minS(), cs * k)), q = ns / cs;
+      ox = mx - (mx - ox) * q; oy = my - (my - oy) * q; cs = ns; clampCam();
+    }
+    function tap(px, py) {
+      if (!run || paused) return;
+      const x = (px - ox) / cs, y = (py - oy) / cs, thr = Math.max(.9, 24 / cs);
+      const hit = divs.filter(d => d.s === 1).map(d => [d, Math.hypot(d.x - x, d.y - y)]).filter(a => a[1] < thr).sort((a, b) => a[1] - b[1])[0];
+      if (hit) { const id = hit[0].id; sel = sel.length === 1 && sel[0] === id ? [] : [id]; buzz(); return; }
+      if (!sel.length || x < 0 || y < 0 || x >= cols || y >= rows || !land(idx(x | 0, y | 0))) return;
+      buzz();
+      order(sel, x | 0, y | 0);
+      if (net && net.role === "guest") sendCmd({ t: "mv", ids: [...sel], x: x | 0, y: y | 0 });
+      else if (net) emit({ t: "mv", s: 1, ids: [...sel], x: x | 0, y: y | 0 });
+    }
+    function order(ids, x, y) {
+      if (!inb(x, y)) return;
+      ids.forEach((id, k) => {
+        const d = divs.find(v => v.id === id); if (!d) return;
+        const [a, b] = SPREAD[k % SPREAD.length]; let tx = x + a, ty = y + b;
+        if (!inb(tx, ty) || !land(idx(tx, ty))) { tx = x; ty = y; }
+        if (land(idx(tx, ty))) goTo(d, tx, ty);
+      });
+    }
+    const sw = v => v === 1 ? 2 : v === 2 ? 1 : 0;   // гість бачить себе як сторону 1, тому сторони міняються місцями
+    function rle(a) { const r = []; let v = a[0], n = 0; for (const x of a) { if (x === v) n++; else { r.push(v, n); v = x; n = 1; } } r.push(v, n); return r; }
+    const r2 = v => Math.round(v * 100) / 100;
+    function snap() {
+      return { e: net.ei, tm: Math.round(tm * 10) / 10, m: [Math.floor(money[1]), Math.floor(money[2])], sc: [Math.floor(score[1]), Math.floor(score[2])],
+        p: pts.map(p => [p.o, Math.round(p.t * 10) / 10, p.c]), o: rle(own),
+        d: divs.map(d => [d.id, d.s, r2(d.x), r2(d.y), Math.round(d.hp), d.goal, d.path.length ? 1 : 0, d.u || 0]) };
+    }
+    // Хост шле лише зміни (накази, поява дивізій). Рух гість рахує сам тим самим кодом: маршрут A*, швидкість по дорозі й горах,
+    // зіткнення. Раз на 2,5 с додається знімок, яким гість плавно вирівнюється.
+    function emit(ev) { ev.i = ++net.ei; net.evs = [...net.evs, ev].slice(-10); flush(false); }
+    function flush(withSnap) { cloud.mp.push(net.code, JSON.stringify({ ev: net.evs, sn: withSnap ? snap() : null })); }
+    function sendCmd(c) { net.seq++; c.n = net.seq; net.q = [...net.q, c].slice(-8); cloud.mp.putCmd(net.code, JSON.stringify(net.q)); }
+    function hostCmd(list) {
+      for (const c of list) {
+        if (c.n <= net.last) continue; net.last = c.n;
+        if (c.t === "mv" && Array.isArray(c.ids)) {
+          const ids = c.ids.filter(id => divs.some(d => d.id === id && d.s === 2)); order(ids, c.x | 0, c.y | 0); emit({ t: "mv", s: 2, ids, x: c.x | 0, y: c.y | 0 });
+        }
+        else if (c.t === "buy" && (!c.u || UN[c.u]) && money[2] >= costOf(c.u) && divs.filter(d => d.s === 2).length < CAP) { const h = pickBig(2); if (h) { money[2] -= costOf(c.u); spawn(2, h, c.u || ""); } }
+      }
+    }
+    function applyEv(ev) {
+      if (ev.t === "mv") { if (ev.s !== 2) order(ev.ids, ev.x, ev.y); }   // накази гостя він уже виконав сам
+      else if (ev.t === "sp" && !divs.some(d => d.id === ev.id)) { const n = { id: ev.id, s: sw(ev.s), x: ev.x, y: ev.y, hp: HP, path: [], eng: false, dmg: 0, goal: -1 }; setU(n, ev.u); if (n.mx) n.hp = n.mx; divs.push(n); }
+    }
+    function applySnap(o) {
+      net.sync = true; net.rx = performance.now(); tm = o.tm; money = [0, o.m[1], o.m[0]]; score = [0, o.sc[1], o.sc[0]];
+      let i = 0; for (let k = 0; k < o.o.length; k += 2) for (let n = 0; n < o.o[k + 1]; n++) own[i++] = sw(o.o[k]);
+      o.p.forEach((p, k) => { if (pts[k]) { pts[k].o = sw(p[0]); pts[k].t = p[1]; pts[k].c = sw(p[2]); } });
+      const old = new Map(divs.map(d => [d.id, d]));
+      divs = o.d.map(([id, s, x, y, hp, goal, mv, u]) => {
+        const d = old.get(id) || { id, x, y, path: [], dmg: 0, goal: -1, eng: false };
+        d.s = sw(s); d.hp = hp; if (u && !d.u) setU(d, u);
+        const ex = x - d.x, ey = y - d.y;
+        if (Math.hypot(ex, ey) > 4) { d.x = x; d.y = y; d.ex = 0; d.ey = 0; } else { d.ex = ex; d.ey = ey; }   // малу розбіжність гасимо плавно
+        if (goal !== d.goal || (mv && !d.path.length)) { if (goal >= 0) goTo(d, goal % cols, (goal / cols) | 0); else d.path = []; d.goal = goal; }
+        else if (!mv && d.path.length) d.path = [];
+        return d;
+      });
+      sel = sel.filter(id => divs.some(d => d.id === id)); calcInf();
+    }
+    function glide(dt) {
+      const k = Math.min(1, dt * 8);
+      for (const d of divs) if (d.ex || d.ey) { d.x += d.ex * k; d.y += d.ey * k; d.ex *= 1 - k; d.ey *= 1 - k; }
+      if (performance.now() - net.rx > (net.sync ? 12000 : 20000)) {
+        run = false;
+        open({ title: "Зв’язок втрачено", lock: true, body: el("p", { textContent: "Від суперника давно немає даних." }), actions: [{ label: "У меню", primary: true, onClick: () => { dlg.close(); stop(); } }] });
+      }
+    }
+    cv.addEventListener("pointerdown", e => {
+      cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+      if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    });
+    cv.addEventListener("pointermove", e => {
+      const p = ptr.get(e.pointerId); if (!p) return;
+      if (ptr.size === 1) {
+        const dx = e.clientX - p[0], dy = e.clientY - p[1];
+        if (moved || Math.hypot(dx, dy) > 6) { moved = true; ox += dx; oy += dy; clampCam(); p[0] = e.clientX; p[1] = e.clientY; }
+      } else {
+        p[0] = e.clientX; p[1] = e.clientY; moved = true;
+        const [a, b] = [...ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (pinch) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, d / pinch); pinch = d;
+      }
+    });
+    const up = e => { const had = ptr.delete(e.pointerId); if (had && !moved && !ptr.size && e.type === "pointerup") tap(e.clientX, e.clientY); if (ptr.size < 2) pinch = 0; if (!ptr.size) moved = false; };
+    cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+    cv.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1 / 1.15); }, { passive: false });
+    // кнопки HUD реагують на дотик одразу (pointerdown); click лишається для клавіатури
+    const press = (b, fn) => {
+      let fired = false;
+      b.addEventListener("pointerdown", e => { if (e.button) return; e.preventDefault(); fired = true; fn(); });
+      b.addEventListener("click", () => { if (fired) { fired = false; return; } fn(); });
+    };
+    press($("#g-all"), () => { buzz(); sel = divs.filter(d => d.s === 1).map(d => d.id); });
+    press($("#g-pause"), () => { buzz(); if (!net && run && !dlg.open) paused = !paused; });
+    const costOf = u => u && UN[u] ? UN[u].cost : COST;
+    function buyU(u) {
+      const c = pickBig(1); if (!run || paused || !c || money[1] < costOf(u) || divs.filter(d => d.s === 1).length >= CAP) return;
+      buzz();
+      money[1] -= costOf(u);
+      if (net && net.role === "guest") sendCmd({ t: "buy", u }); else spawn(1, c, u);
+    }
+    let cards = [];
+    function buildDeck() {
+      const ids = ["", ...(state.loadout || []).filter(id => UN[id] && state.inv[id] > 0).slice(0, 3)];
+      cards = ids.map(u => {
+        const q = UN[u], b = el("button", { type: "button", className: "card" }, pic(q ? "img/" + u + ".png" : skinSrc(), q ? q.e : "🪖"), el("b", { textContent: q ? q.n : "Дивізія" }), el("small", { textContent: costOf(u) }));
+        if (q) b.style.setProperty("--rc", RAR[q.r][1]);
+        press(b, () => buyU(u)); return { u, b };
+      });
+      deckEl.replaceChildren(...cards.map(c => c.b)); hudBuy = null;
+    }
+    press($("#g-exit"), () => {
+      buzz(); if (dlg.open) return;
+      const was = paused; if (!net) paused = true;
+      open({ title: "Вийти з бою?", lock: true, body: el("p", { textContent: "Прогрес цього бою буде втрачено." }),
+        actions: [{ label: "Грати далі", onClick: () => { paused = was; dlg.close(); } }, { label: "Вийти", primary: true, onClick: () => { dlg.close(); if (net && run) end(false, true); else stop(); } }] });
+    });
+    addEventListener("resize", () => { if (g.classList.contains("on")) fit(); });
+
+    function start(df, md, mi) {
+      diff = df || diff; mode = md || mode; mapi = mi === undefined ? mapi : mi; tm = 0; lost = 0; kills = 0; autoT = 0; score = [0, 0, 0];
+      g.classList.add("on"); field.setRunning(false);
+      W = innerWidth; H = innerHeight; hh = $(".hud").offsetHeight;
+      const hz = W >= H - hh; cols = hz ? 128 : 80; rows = hz ? 80 : 128;
+      if (net) { cols = net.cols; rows = net.rows; }
+      cs = 16; fit(); gen(); buildDeck();
+      pt = new Float32Array(cols * rows);
+      divs = []; sel = []; money = [0, 200, net ? 200 : DIFF[diff].cash]; nid = 1; acc = 0; aiT = DIFF[diff].first; paused = false; run = true;
+      if (!net || net.role === "host") [1, 2].forEach(s => { for (let k = 0; k < 4; k++) spawn(s, cities[s - 1]); });
+      const c = cities[net && net.role === "guest" ? 1 : 0]; ox = W / 2 - (c.x + .5) * cs; oy = (H + hh) / 2 - (c.y + .5) * cs; clampCam();
+      front(); cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame);
+    }
+    function stop() {
+      if (net) { net.un.forEach(f => f()); net = null; }
+      run = false; paused = false; cards = []; deckEl.replaceChildren(); cancelAnimationFrame(raf); g.classList.remove("on");
+      field.setRunning(state.settings.bgAnim);
+    }
+    function pick() {
+      const bt = (t, sub, f) => { const b = el("button", { type: "button", className: "btn" }, t, el("small", { textContent: sub })); b.addEventListener("click", () => { buzz(); f(); }); return b; };
+      open({ title: "Режим", body: [
+        bt("Бій насмерть", "Захопи всі міста ворога", () => maps("kill")),
+        bt("Утримання", "Сірі точки A · B · C: захоплення за 5 с, перший до 1500 балів", () => maps("hold"))
+      ], actions: [{ label: "Скасувати" }] });
+    }
+    function maps(md, cb) {
+      const names = { easy: "Легка", normal: "Нормальна", hard: "Складна" }, row = el("div", {});
+      row.style.cssText = "display:flex;gap:8px";
+      const chips = Object.keys(names).map(k => {
+        const b = el("button", { type: "button", className: "btn" + (k === state.diff ? " solo" : ""), textContent: names[k] }); b.style.flex = "1";
+        b.addEventListener("click", () => { buzz(); state.diff = k; save(); chips.forEach(c => c.classList.toggle("solo", c === b)); }); return b;
+      });
+      row.append(...chips);
+      const mp = MAPS[md].map((m, i) => { const b = el("button", { type: "button", className: "btn" }, m.name, el("small", { textContent: m.desc })); b.addEventListener("click", () => { buzz(); dlg.close(); cb ? cb(md, i) : deckThen(() => start(state.diff, md, i)); }); return b; });
+      open({ title: md === "hold" ? "Утримання" : "Бій насмерть", body: [...(cb ? [] : [el("p", { className: "hint", textContent: "Складність" }), row]), el("p", { className: "hint", textContent: "Мапа" }), ...mp], actions: [{ label: "Назад", onClick: cb ? modes : pick }] });
+    }
+
+    /* ---------- мультиплеєр ---------- */
+    const mbt = (t, sub, f) => { const b = el("button", { type: "button", className: "btn" }, t, el("small", { textContent: sub })); b.addEventListener("click", () => { buzz(); f(); }); return b; };
+    const nick = () => state.profile ? state.profile.nick : "";
+    const fail = e => open({ title: "Не вийшло", body: el("p", { textContent: e && e.code === "notfound" ? "Кімнату не знайдено." : e && e.code === "full" ? "Кімната вже зайнята." : e && e.code === "self" ? "Це ваша власна кімната." : e && e.code === "permission-denied" ? "Сервер відхилив запит: опублікуйте оновлені Firestore rules." : "Помилка з’єднання. Спробуйте ще раз." }), actions: [{ label: "Закрити" }] });
+    function multi() {
+      if (!cloud.mp.ok()) return open({ title: "Мультиплеєр", body: el("p", { textContent: "Для гри по мережі потрібно увійти через Google." }), actions: [{ label: "Зрозуміло" }] });
+      open({ title: "Мультиплеєр", body: [
+        mbt("Швидкий пошук", "Випадковий суперник", quick),
+        mbt("Створити кімнату", "Обираєте режим і мапу, друг вводить код", modes),
+        mbt("Приєднатись за кодом", "Код із 4 символів", codeDlg)
+      ], actions: [{ label: "Закрити" }] });
+    }
+    function modes() {
+      open({ title: "Режим кімнати", body: [
+        mbt("Бій насмерть", "Захопи всі міста", () => maps("kill", (m, i) => host(m, i, false))),
+        mbt("Утримання", "Точки A · B · C, до " + GOAL + " балів", () => maps("hold", (m, i) => host(m, i, false)))
+      ], actions: [{ label: "Назад", onClick: multi }] });
+    }
+    function codeDlg() {
+      const input = el("input", { className: "field", maxLength: 4, placeholder: "ABCD", autocomplete: "off", spellcheck: false });
+      input.style.textTransform = "uppercase";
+      open({ title: "Код кімнати", body: [input], actions: [{ label: "Назад", onClick: multi }, { label: "Приєднатись", primary: true, onClick: () => { const c = input.value.trim().toUpperCase(); if (c.length === 4) { dlg.close(); joinRoom(c); } } }] });
+    }
+    async function host(md, mi, pub) {
+      const hz = innerWidth >= innerHeight - 60, c = hz ? 128 : 80, r = hz ? 80 : 128;
+      let code; try { code = await cloud.mp.create({ mode: md, map: mi, cols: c, rows: r, pub, nick: nick() }); } catch (e) { return fail(e); }
+      const big = el("p", { textContent: code }); big.style.cssText = "font:normal 44px var(--display);letter-spacing:.25em;text-align:center;margin:6px 0";
+      let un = () => {};
+      open({ title: "Очікуємо суперника", lock: true, body: [big, el("p", { textContent: pub ? "Шукаємо суперника…" : "Надішліть цей код другові." })],
+        actions: [{ label: "Скасувати", onClick: () => { un(); cloud.mp.remove(code); dlg.close(); } }] });
+      un = cloud.mp.onRoom(code, d => { if (d.status === "playing" && d.guest) { un(); dlg.close(); begin({ role: "host", code, md, mi, cols: c, rows: r }); } });
+    }
+    async function joinRoom(code) {
+      try { const d = await cloud.mp.join(code, nick()); begin({ role: "guest", code, md: d.mode, mi: d.map, cols: d.cols, rows: d.rows }); } catch (e) { fail(e); }
+    }
+    async function quick() {
+      open({ title: "Пошук", body: el("p", { textContent: "Шукаємо відкриту кімнату…" }), actions: [{ label: "Закрити" }] });
+      try {
+        const d = await cloud.mp.quick(nick());
+        if (d) { dlg.close(); return begin({ role: "guest", code: d.id, md: d.mode, mi: d.map, cols: d.cols, rows: d.rows }); }
+        host(Math.random() < .5 ? "kill" : "hold", Math.floor(Math.random() * 3), true);
+      } catch (e) { fail(e); }
+    }
+    function begin(i) { deckThen(() => run0(i), 15); }
+    function run0(i) {
+      net = { ...i, seq: 0, last: 0, q: [], t: 0, ei: 0, evs: [], lastEv: 0, live: false, sync: i.role === "host", rx: performance.now(), done: false, un: [] };
+      start(null, i.md, i.mi); net.live = true;
+      net.un.push(cloud.mp.onRoom(i.code, d => { if (d.status === "done" && run && net && !net.done) { net.done = true; end(i.role === "host" ? d.winner === 1 : d.winner === 2); } }));
+      if (i.role === "host") net.un.push(cloud.mp.onCmd(i.code, d => { try { hostCmd(JSON.parse(d.j)); } catch (e) { console.warn(e); } }));
+      else net.un.push(cloud.mp.onState(i.code, d => {
+        try {
+          const o = JSON.parse(d.j);
+          for (const ev of o.ev || []) if (ev.i > net.lastEv) { net.lastEv = ev.i; applyEv(ev); }
+          if (o.sn) applySnap(o.sn);
+        } catch (e) { console.warn(e); }
+      }));
+    }
+    return { start, pick, multi };
+  })();
+
+  /* ================= wire up ================= */
+  document.querySelectorAll("[data-act]").forEach(b =>
+    b.addEventListener("click", () => { buzz(); actions[b.dataset.act](); }));
+  $("#nick").addEventListener("click", () => { buzz(); askNick(false); });
+  $("#avatar").addEventListener("click", () => { buzz(); askAvatar(); });
+  $("#switch").addEventListener("click", () => { buzz(); switchAccount(); });
+
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) cloud.refresh(); });
+  addEventListener("online", () => cloud.sync());
+
+  render();
+  field.setRunning(state.settings.bgAnim);
+  (async () => {
+    const r = await cloud.init();
+    if (r.state === "off") { if (!state.profile) askNick(true); return; }
+    if (r.state === "out") { showLogin(); return; }
+    await afterAuth(r);
+  })();
+
+  /* ================= PWA ================= */
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
